@@ -7,8 +7,9 @@ task :wireguard do
     dump_config
     only_when { hostname is :earth }
 
-    file '/etc/wg/wg0.conf' do
-      content 'the content'
+    file '/tmp/test/wg/wg0.conf' do
+      create_parent
+      content 'the content is here'
     end
   end
 end

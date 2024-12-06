@@ -1,7 +1,12 @@
+require 'fileutils'
+require_relative 'log'
+
 module RCM
   # Managing files
   class File
     attr_reader :path
+
+    include Log
 
     def initialize(path)
       @path = path
@@ -11,12 +16,25 @@ module RCM
       content.nil? ? @content : @content = content
     end
 
+    def create_parent
+      @create_parent = true
+    end
+
     def to_s
       @path
     end
 
     def do!
-      puts "Evaluating #{self.class}:#{self}"
+      dirname = ::File.dirname(@path)
+      if !::File.directory?(dirname) && @create_parent
+        info "Creating parent directory #{parent}"
+        FileUtils.mkdir_p(dirname)
+      end
+
+      info "Creating file #{@path}"
+      tmp_path = "#{@path}.tmp"
+      ::File.write(tmp_path, @content)
+      ::File.rename(tmp_path, @path)
     end
   end
 
