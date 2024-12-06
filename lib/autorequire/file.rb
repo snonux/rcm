@@ -1,30 +1,48 @@
+require 'erb'
 require 'fileutils'
+
+require_relative 'options'
 require_relative 'log'
 
 module RCM
   # Managing files
   class File
-    attr_reader :path
+    attr_reader :id, :path
 
+    include Options
     include Log
 
     def initialize(path)
+      @id = "#{self.class}(#{path})"
       @path = path
+    end
+
+    def to_s
+      id
     end
 
     def content(content = nil)
       content.nil? ? @content : @content = content
     end
 
-    def create_parent
+    def create_parent_directory
       @create_parent = true
+      self
     end
 
-    def to_s
-      @path
+    def from_file(...)
+      @from_file = true
+      self
+    end
+
+    def from_template(...)
+      @from_template = true
+      self
     end
 
     def do!
+      content = file_content
+
       dirname = ::File.dirname(@path)
       if !::File.directory?(dirname) && @create_parent
         info "Creating parent directory #{parent}"
@@ -32,9 +50,18 @@ module RCM
       end
 
       info "Creating file #{@path}"
+      debug content if option :debug
+
       tmp_path = "#{@path}.tmp"
-      ::File.write(tmp_path, @content)
+      ::File.write(tmp_path, content)
       ::File.rename(tmp_path, @path)
+    end
+
+    private
+
+    def file_content
+      content = @from_file ? ::File.read(@content) : @content
+      @from_template ? ERB.new(content).result : content
     end
   end
 

@@ -4,6 +4,8 @@ Dir["#{Dir.pwd}/lib/autorequire/*.rb"].each { |m| require m }
 module RCM
   # Here all starts
   class RCM
+    attr_reader :id
+    
     @@rcm_counter = 0
 
     include Config
@@ -11,10 +13,10 @@ module RCM
     include Log
 
     def initialize
-      @objs = []
+      @id = "#{self.class}(#{@@rcm_counter})"
+      @objs = {}
       @conds_met = true
       @@rcm_counter += 1
-      @number = @@rcm_counter
     end
 
     def to_s
@@ -22,11 +24,12 @@ module RCM
     end
 
     def do!
-      @objs.each(&:do!)
+      @objs.each_value(&:do!)
     end
 
     def <<(obj)
-      @objs << obj
+      fatal_exit "Object #{obj.id} already declared!" if @objs.key?(obj.id)
+      @objs[obj.id] = obj
     end
   end
 end

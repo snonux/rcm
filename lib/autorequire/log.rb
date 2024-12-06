@@ -5,15 +5,20 @@ module RCM
     @@logger = Logger.new(STDOUT)
 
     def info(message)
-      @@logger.info("#{self.class}(#{self}): #{message}")
+      @@logger.info("#{id} => #{message}")
     end
 
     def warn(message)
-      @@logger.warn("#{self.class}(#{self}): #{message}")
+      @@logger.warn("#{id} => #{message}")
+    end
+
+    def fatal_exit(message)
+      @@logger.fatal("#{id} => #{message}")
+      exit 2
     end
 
     def debug(message)
-      @@logger.debug("#{self.class}(#{self}): #{message}")
+      @@logger.debug("#{id} => #{message}")
     end
   end
 end

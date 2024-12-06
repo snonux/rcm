@@ -1,6 +1,9 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    cgi (0.4.1)
+    erb (4.0.4)
+      cgi (>= 0.3.3)
     parslet (2.0.0)
     toml (0.3.0)
       parslet (>= 1.8.0, < 3.0.0)
@@ -10,6 +13,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  erb
   toml
 
 BUNDLED WITH
