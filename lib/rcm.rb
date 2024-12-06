@@ -1,11 +1,15 @@
-Dir["#{Dir.pwd}/lib/autorequire/*.rb"].each { |m| require m }
+require_relative 'config'
+require_relative 'options'
+require_relative 'log'
+
+Dir["#{Dir.pwd}/lib/dslkeywords/*.rb"].each { |m| require m }
 
 # Ruby Configiration Management system
 module RCM
   # Here all starts
   class RCM
     attr_reader :id
-    
+
     @@rcm_counter = 0
 
     include Config

@@ -1,8 +1,8 @@
 require 'erb'
 require 'fileutils'
 
-require_relative 'options'
-require_relative 'log'
+require_relative '../options'
+require_relative '../log'
 
 module RCM
   # Managing files
