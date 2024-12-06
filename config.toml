@@ -1,0 +1,3 @@
+[hostgroups]
+
+frontends = ["blowfish.buetow.org", "fishfinger.buetow.org"]

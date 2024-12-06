@@ -1,3 +1,4 @@
+require_relative 'config'
 require_relative 'options'
 require_relative 'only_when'
 require_relative 'file'
@@ -6,6 +7,7 @@ require_relative 'file'
 module RCM
   # Here all starts
   class RCM
+    include Config
     include Options
 
     def initialize
