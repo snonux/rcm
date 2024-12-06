@@ -24,7 +24,7 @@ end
 desc 'foo task'
 task :foo do
   make_it_so do
-    file '/tmp/test.txt' do
+    file :alias, '/tmp/test.txt' do
       [ 'foo', 'bar', 'baz' ].sort
     end
   end

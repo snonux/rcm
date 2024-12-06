@@ -72,6 +72,7 @@ module RCM
       f = File.new(path)
       f.content(f.instance_eval(&block))
       self << f
+      f
     end
   end
 end
