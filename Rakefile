@@ -1,4 +1,4 @@
-require_relative 'rcm/rcm'
+require_relative 'lib/rcm'
 
 desc 'Set up wireguard mesh'
 task :wireguard do

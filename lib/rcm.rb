@@ -1,10 +1,8 @@
-require_relative 'config'
-require_relative 'options'
-require_relative 'only_when'
-require_relative 'file'
+Dir["#{Dir.pwd}/lib/autorequire/*.rb"].each { |m| require m }
 
 # Ruby Configiration Management system
 module RCM
+
   # Here all starts
   class RCM
     include Config
