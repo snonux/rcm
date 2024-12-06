@@ -1,5 +1,5 @@
 require_relative 'options'
-require_relative 'conditions'
+require_relative 'only_when'
 require_relative 'file'
 
 # Ruby Configiration Management system
@@ -23,7 +23,7 @@ module RCM
   end
 end
 
-def rcm(&block)
+def make_it_so(&block)
   rcm = RCM::RCM.new
   rcm.instance_eval(&block)
   rcm.do!

@@ -1,6 +1,6 @@
 module RCM
-  # Conditions (e.g. run on host foo)
-  class Conditions
+  # OnlyWhen (e.g. run on host foo)
+  class OnlyWhen
     require 'socket'
 
     def initialize
@@ -26,10 +26,10 @@ module RCM
     end
   end
 
-  # Add conditions "keyword" to the DSL
+  # Add 'only_when' to DSL
   class RCM
-    def conditions(&block)
-      conds = Conditions.new
+    def only_when(&block)
+      conds = OnlyWhen.new
       conds.instance_eval(&block)
       @conds_met = conds.met?
     end
