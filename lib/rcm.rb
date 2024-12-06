@@ -10,17 +10,18 @@ module RCM
   class RCM
     attr_reader :id
 
-    @@rcm_counter = 0
+    @@rcm_counter = -1
+    @@objs = {}
 
     include Config
     include Options
     include Log
 
     def initialize
-      @id = "#{self.class}(#{@@rcm_counter})"
-      @objs = {}
-      @conds_met = true
       @@rcm_counter += 1
+      @id = "#{self.class}(#{@@rcm_counter})"
+      @conds_met = true
+      @scheduled = []
     end
 
     def to_s
@@ -28,12 +29,12 @@ module RCM
     end
 
     def do!
-      @objs.each_value(&:do!)
+      @scheduled.each(&:do!)
     end
 
     def <<(obj)
-      fatal_exit "Object #{obj.id} already declared!" if @objs.key?(obj.id)
-      @objs[obj.id] = obj
+      fatal_exit "Object #{obj.id} already declared!" if @@objs.key?(obj.id)
+      @scheduled << @@objs[obj.id] = obj
     end
   end
 end

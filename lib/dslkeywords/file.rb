@@ -22,26 +22,25 @@ module RCM
     end
 
     def content(content = nil)
-      content.nil? ? @content : @content = content
+      return @content if content.nil?
+
+      @content = content.instance_of?(Array) ? content.join("\n") : content
     end
 
     def create_parent_directory
       @create_parent = true
-      self
     end
 
-    def from_file(...)
-      @from_file = true
-      self
+    def from_sourcefile
+      @from_sourcefile = true
     end
 
-    def from_template(...)
+    def from_template
       @from_template = true
-      self
     end
 
     def do!
-      content = file_content
+      content = real_content
 
       dirname = ::File.dirname(@path)
       if !::File.directory?(dirname) && @create_parent
@@ -59,8 +58,8 @@ module RCM
 
     private
 
-    def file_content
-      content = @from_file ? ::File.read(@content) : @content
+    def real_content
+      content = @from_sourcefile ? ::File.read(@content) : @content
       @from_template ? ERB.new(content).result : content
     end
   end
@@ -71,7 +70,7 @@ module RCM
       return unless @conds_met
 
       f = File.new(path)
-      f.instance_eval(&block)
+      f.content(f.instance_eval(&block))
       self << f
     end
   end
