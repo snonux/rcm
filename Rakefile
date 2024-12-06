@@ -1,7 +1,9 @@
 require_relative 'rcm/rcm'
 
-task :default do |t|
+desc 'Set up wireguard mesh'
+task :wireguard do |t|
   rcm do
+    p option :verbose
     conditions do
       hostname is :earth
     end
