@@ -1,8 +1,8 @@
-require_relative 'lib/rcm'
+require_relative 'lib/dsl'
 
 desc 'Set up wireguard mesh'
 task :wireguard do
-  make_it_so do
+  configure do
     # p option :verbose
     # dump_config
     only_when { hostname is :earth }
@@ -23,9 +23,9 @@ end
 
 desc 'foo task'
 task :foo do
-  make_it_so do
+  configure do
     file '/tmp/test.txt' do
       [ 'foo', 'bar', 'baz' ].sort
     end
   end
-end 
+end

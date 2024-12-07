@@ -39,7 +39,7 @@ module RCM
       @from_template = true
     end
 
-    def do!
+    def evaluate!
       content = real_content
 
       dirname = ::File.dirname(@path)
@@ -65,7 +65,7 @@ module RCM
   end
 
   # Add file keyword to the DSL
-  class RCM
+  class DSL
     def file(path, &block)
       return unless @conds_met
 

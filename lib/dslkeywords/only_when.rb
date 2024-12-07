@@ -27,7 +27,7 @@ module RCM
   end
 
   # Add 'only_when' to DSL
-  class RCM
+  class DSL
     def only_when(&block)
       conds = OnlyWhen.new
       conds.instance_eval(&block)

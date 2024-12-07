@@ -7,7 +7,7 @@ Dir["#{Dir.pwd}/lib/dslkeywords/*.rb"].each { |m| require m }
 # Ruby Configiration Management system
 module RCM
   # Here all starts
-  class RCM
+  class DSL
     attr_reader :id
 
     @@rcm_counter = -1
@@ -18,18 +18,18 @@ module RCM
     include Log
 
     def initialize
-      @@rcm_counter += 1
-      @id = "#{self.class}(#{@@rcm_counter})"
+      @id = "#{self.class}(#{@@rcm_counter += 1})"
       @conds_met = true
       @scheduled = []
+      yield self if block_given?
     end
 
     def to_s
       "RCM #{@number}"
     end
 
-    def do!
-      @scheduled.each(&:do!)
+    def evaluate!
+      @scheduled.each(&:evaluate!)
     end
 
     def <<(obj)
@@ -39,9 +39,10 @@ module RCM
   end
 end
 
-def make_it_so(&block)
-  rcm = RCM::RCM.new
-  rcm.info('Making it so...')
-  rcm.instance_eval(&block)
-  rcm.do!
+def configure(&block)
+  RCM::DSL.new do |rcm|
+    rcm.info('Configuring...')
+    rcm.instance_eval(&block)
+    rcm.evaluate!
+  end
 end
