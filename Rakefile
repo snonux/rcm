@@ -29,3 +29,14 @@ task :foo do
     end
   end
 end
+
+desc 'Set up the /etc/hosts file'
+task :hosts do
+  configure do
+    only_when { hostname is :earth }
+
+    file '/etc/hosts.test' do
+      add_line '192.168.1.101 foo'
+    end
+  end
+end

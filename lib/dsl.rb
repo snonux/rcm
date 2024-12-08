@@ -24,9 +24,7 @@ module RCM
       yield self if block_given?
     end
 
-    def to_s
-      "RCM #{@number}"
-    end
+    def to_s = "RCM #{@number}"
 
     def evaluate!
       @scheduled.each(&:evaluate!)
