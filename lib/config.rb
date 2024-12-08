@@ -11,8 +11,6 @@ module RCM
       @@config[key]
     end
 
-    def dump_config
-      p @@config
-    end
+    def dump_config = p @@config
   end
 end

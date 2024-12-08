@@ -3,9 +3,7 @@ require 'optparse'
 module RCM
   # Command line options
   module Options
-    @@options = {
-      debug: false
-    }
+    @@options = { debug: false }
 
     after_double_dash = ARGV.slice_before('--').to_a.last.drop(1)
 

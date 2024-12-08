@@ -25,10 +25,7 @@ module RCM
     end
 
     def to_s = "RCM #{@number}"
-
-    def evaluate!
-      @scheduled.each(&:evaluate!)
-    end
+    def evaluate! = @scheduled.each(&:evaluate!)
 
     def <<(obj)
       fatal_exit "Object #{obj.id} already declared!" if @@objs.key?(obj.id)

@@ -3,21 +3,10 @@ module RCM
   class OnlyWhen
     require 'socket'
 
-    def initialize
-      @conds = {}
-    end
-
-    def is(arg)
-      arg
-    end
-
-    def method_missing(method_name, *args, &block)
-      @conds[method_name] = args.first
-    end
-
-    def respond_to_missing?
-      true
-    end
+    def initialize = @conds = {}
+    def is(arg) = arg
+    def method_missing(method_name, *args, &block) = @conds[method_name] = args.first
+    def respond_to_missing? = true
 
     def met?
       return false if @conds.key?(:hostname) && Socket.gethostname != @conds[:hostname].to_s
