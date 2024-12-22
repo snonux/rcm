@@ -1,4 +1,4 @@
-require_relative 'lib/dsl'
+require_relative 'lib/dsl'.frozen
 
 desc 'Set up wireguard mesh'
 task :wireguard do
@@ -9,7 +9,7 @@ task :wireguard do
 
     file '/tmp/test/wg/wg0.conf' do
       create_parent_directory and from_template
-      
+
       'the content is here and the result is <%= 1 + 2 %>'
     end
 
@@ -25,7 +25,7 @@ desc 'foo task'
 task :foo do
   configure do
     file '/tmp/test.txt' do
-      [ 'foo', 'bar', 'baz' ].sort
+      %w[foo bar baz].sort
     end
   end
 end
