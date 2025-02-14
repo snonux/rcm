@@ -5,6 +5,7 @@ GEM
     erb (4.0.4)
       cgi (>= 0.3.3)
     logger (1.6.4)
+    minitest (5.25.4)
     parslet (2.0.0)
     rbs (3.7.0)
       logger
@@ -17,6 +18,7 @@ PLATFORMS
 
 DEPENDENCIES
   erb
+  minitest
   rbs
   toml
 

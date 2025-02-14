@@ -19,10 +19,10 @@ module RCM
 
     def to_s = id
 
-    def content(content = nil)
-      return @content if content.nil?
+    def content(text = nil)
+      return @content if text.nil?
 
-      @content = content.instance_of?(Array) ? content.join("\n") : content
+      @content = text.instance_of?(Array) ? text.join("\n") : text
     end
 
     def create_parent_directory = @create_parent = true
@@ -49,12 +49,12 @@ module RCM
       end
     end
 
-    def write_content!(content)
+    def write_content!(text)
       create_parent_directory!
-      debug content if option :debug
+      debug text if option :debug
       info "Creating file #{@path}"
       tmp_path = "#{@path}.tmp"
-      ::File.write(tmp_path, content)
+      ::File.write(tmp_path, text)
       ::File.rename(tmp_path, @path)
     end
 
@@ -67,8 +67,8 @@ module RCM
     end
 
     def real_content
-      content = @from_sourcefile ? ::File.read(@content) : @content
-      @from_template ? ERB.new(content).result : content
+      text = @from_sourcefile ? ::File.read(@content) : @content
+      @from_template ? ERB.new(text).result : text
     end
   end
 
@@ -76,6 +76,8 @@ module RCM
   class DSL
     def file(path, &block)
       return unless @conds_met
+
+      p :FOO, path
 
       f = File.new(path)
       f.content(f.instance_eval(&block))
