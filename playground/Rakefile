@@ -1,4 +1,4 @@
-require_relative 'lib/dsl'
+require_relative '../lib/dsl'
 
 desc 'Set up wireguard mesh'
 task :wireguard do

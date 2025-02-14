@@ -62,7 +62,7 @@ module RCM
       dirname = ::File.dirname(@path)
       return unless !::File.directory?(dirname) && @create_parent
 
-      info "Creating parent directory #{parent}"
+      info "Creating parent directory #{dirname}"
       FileUtils.mkdir_p(dirname)
     end
 

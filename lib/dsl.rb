@@ -10,15 +10,19 @@ module RCM
   class DSL
     attr_reader :id
 
-    # TODO: Replace @@ with @ class variables
-    @@rcm_counter = -1
-    @@objs = {}
+    def self.reset!
+      @@rcm_counter = -1
+      @@objs = {}
+    end
+
+    reset!
 
     include Config
     include Options
     include Log
 
-    def initialize
+    def initialize(reset)
+      DSL.reset! if reset
       @id = "#{self.class}(#{@@rcm_counter += 1})"
       @conds_met = true
       @scheduled = []
@@ -35,8 +39,8 @@ module RCM
   end
 end
 
-def configure(&block)
-  RCM::DSL.new do |rcm|
+def configure(reset: false, &block)
+  RCM::DSL.new(reset) do |rcm|
     rcm.info('Configuring...')
     rcm.instance_eval(&block)
     rcm.evaluate!
