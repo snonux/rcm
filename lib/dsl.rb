@@ -46,3 +46,5 @@ def configure(reset: false, &block)
     rcm.evaluate! if rcm.conds_met
   end
 end
+
+def configure_from_scratch(&block) = configure(reset: true, &block)

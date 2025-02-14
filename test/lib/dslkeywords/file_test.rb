@@ -14,13 +14,13 @@ class RCMFileTest < Minitest::Test
 
   def test_create_file_from_string
     text = 'Hello World!'
-    configure(reset: true) { file(FILE_PATH) { text } }
+    configure_from_scratch { file(FILE_PATH) { text } }
     assert_equal text, File.read(FILE_PATH)
   end
 
   def test_create_file_from_array
     arr = %w[Hello World and Hello Universe]
-    configure(reset: true) { file(FILE_PATH) { arr } }
+    configure_from_scratch { file(FILE_PATH) { arr } }
     assert_equal arr.join("\n"), File.read(FILE_PATH)
   end
 
@@ -29,19 +29,19 @@ class RCMFileTest < Minitest::Test
     source_path = "#{FILE_PATH}.source.tmp"
     File.write(source_path, text)
 
-    configure(reset: true) do
+    configure_from_scratch do
       file FILE_PATH do
         from_sourcefile
         source_path
       end
     end
     assert_equal File.read(source_path), File.read(FILE_PATH)
-
-    File.unlink(source_path)
+  ensure
+    File.unlink(source_path) if File.file?(source_path)
   end
 
   def test_create_file_from_template
-    configure(reset: true) do
+    configure_from_scratch do
       file FILE_PATH do
         from_template
         'One plus two is <%= 1 + 2 %>!'
@@ -52,13 +52,13 @@ class RCMFileTest < Minitest::Test
 
   def test_ensure_line
     File.write(FILE_PATH, "Hey there\n")
-    configure(reset: true) { file(FILE_PATH) { ensure_line 'Whats up?' } }
+    configure_from_scratch { file(FILE_PATH) { ensure_line 'Whats up?' } }
     assert_equal "Hey there\nWhats up?\n", File.read(FILE_PATH)
   end
 
   def test_create_parent_directory
     file_path = "#{DIR_PATH}/foo/bar/baz/foo.txt"
-    configure(reset: true) do
+    configure_from_scratch do
       file file_path do
         create_parent_directory
         :content
