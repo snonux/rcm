@@ -77,8 +77,6 @@ module RCM
     def file(path, &block)
       return unless @conds_met
 
-      p :FOO, path
-
       f = File.new(path)
       f.content(f.instance_eval(&block))
       self << f
