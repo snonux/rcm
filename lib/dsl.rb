@@ -8,7 +8,7 @@ Dir["#{Dir.pwd}/lib/dslkeywords/*.rb"].each { |m| require m }
 module RCM
   # Here all starts
   class DSL
-    attr_reader :id
+    attr_reader :id, :conds_met
 
     def self.reset!
       @@rcm_counter = -1
@@ -43,6 +43,6 @@ def configure(reset: false, &block)
   RCM::DSL.new(reset) do |rcm|
     rcm.info('Configuring...')
     rcm.instance_eval(&block)
-    rcm.evaluate!
+    rcm.evaluate! if rcm.conds_met
   end
 end

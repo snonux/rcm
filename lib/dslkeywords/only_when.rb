@@ -5,7 +5,7 @@ module RCM
 
     def initialize = @conds = {}
     def is(arg) = arg
-    def method_missing(method_name, *args, &block) = @conds[method_name] = args.first
+    def method_missing(method_name, *args) = @conds[method_name] = args.first
     def respond_to_missing? = true
 
     def met?
