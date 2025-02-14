@@ -10,6 +10,7 @@ module RCM
   class DSL
     attr_reader :id
 
+    # TODO: Replace @@ with @ class variables
     @@rcm_counter = -1
     @@objs = {}
 

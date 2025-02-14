@@ -4,7 +4,10 @@ GEM
     cgi (0.4.1)
     erb (4.0.4)
       cgi (>= 0.3.3)
+    logger (1.6.4)
     parslet (2.0.0)
+    rbs (3.7.0)
+      logger
     toml (0.3.0)
       parslet (>= 1.8.0, < 3.0.0)
 
@@ -14,6 +17,7 @@ PLATFORMS
 
 DEPENDENCIES
   erb
+  rbs
   toml
 
 BUNDLED WITH

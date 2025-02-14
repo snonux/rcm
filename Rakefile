@@ -1,4 +1,4 @@
-require_relative 'lib/dsl'.frozen
+require_relative 'lib/dsl'
 
 desc 'Set up wireguard mesh'
 task :wireguard do
@@ -36,7 +36,16 @@ task :hosts do
     only_when { hostname is :earth }
 
     file '/etc/hosts.test' do
-      add_line '192.168.1.101 foo'
+      ensure_line '192.168.1.101 foo'
+    end
+  end
+end
+
+desc 'foo'
+task :foo do
+  configure do
+    file '/tmp/foo.txt' do
+      ensure_line 'foo bar baz'
     end
   end
 end

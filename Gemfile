@@ -1,4 +1,5 @@
 source 'https://rubygems.org'
 
-gem 'toml'
 gem 'erb'
+gem 'rbs'
+gem 'toml'
