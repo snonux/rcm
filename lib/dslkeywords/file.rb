@@ -1,11 +1,11 @@
 require 'erb'
 require 'fileutils'
 
-require_relative 'keyword'
+require_relative 'resource'
 
 module RCM
   # Managing files
-  class File < Keyword
+  class File < Resource
     attr_reader :path
 
     def initialize(path)

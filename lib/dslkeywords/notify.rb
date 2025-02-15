@@ -1,0 +1,32 @@
+require 'erb'
+require 'fileutils'
+
+require_relative 'resource'
+
+module RCM
+  # Only to print out something
+  class Notify < Resource
+    def initialize(message)
+      super(message)
+      @message = message
+    end
+
+    def message(msg)
+      @message = msg unless msg.nil?
+    end
+
+    def evaluate! = puts "#{id} => #{@message}"
+  end
+
+  # Add notify keyword to the DSL
+  class DSL
+    def notify(message, &block)
+      return unless @conds_met
+
+      n = Notify.new(message)
+      n.message(n.instance_eval(&block)) if block
+      self << n
+      n
+    end
+  end
+end

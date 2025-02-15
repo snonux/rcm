@@ -4,6 +4,7 @@ require_relative 'log'
 
 require_relative 'dslkeywords/file'
 require_relative 'dslkeywords/only_when'
+require_relative 'dslkeywords/notify'
 
 # Ruby Configiration Management system
 module RCM
@@ -24,7 +25,7 @@ module RCM
 
     def initialize(reset)
       DSL.reset! if reset
-      @id = "DSL[#{@@rcm_counter += 1}]"
+      @id = "dsl[#{@@rcm_counter += 1}]"
       @conds_met = true
       @scheduled = []
       yield self if block_given?

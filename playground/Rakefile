@@ -37,6 +37,7 @@ task :foo do
   configure do
     file '/tmp/foo.txt' do
       ensure_line 'foo'
+      depends_on file['/tmp/bar.txt']
     end
 
     file '/tmp/bar.txt' do
