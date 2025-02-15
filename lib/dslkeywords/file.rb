@@ -1,23 +1,17 @@
 require 'erb'
 require 'fileutils'
 
-require_relative '../options'
-require_relative '../log'
+require_relative 'keyword'
 
 module RCM
   # Managing files
-  class File
-    attr_reader :id, :path
-
-    include Options
-    include Log
+  class File < Keyword
+    attr_reader :path
 
     def initialize(path)
-      @id = "#{self.class}(#{path})"
+      super(path)
       @path = path
     end
-
-    def to_s = id
 
     def content(text = nil)
       return @content if text.nil?
@@ -40,9 +34,7 @@ module RCM
 
     def evaluate_ensure_line!
       return write_content!(@ensure_line) unless ::File.file?(@path)
-
-      lines = ::File.readlines(@path, chomp: true)
-      return if lines.include?(@ensure_line)
+      return if ::File.readlines(@path, chomp: true).include?(@ensure_line)
 
       ::File.open(@path, 'a') do |fd|
         fd.puts(@ensure_line)

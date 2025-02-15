@@ -21,15 +21,6 @@ task :wireguard do
   end
 end
 
-desc 'foo task'
-task :foo do
-  configure do
-    file '/tmp/test.txt' do
-      %w[foo bar baz].sort
-    end
-  end
-end
-
 desc 'Set up the /etc/hosts file'
 task :hosts do
   configure do
@@ -45,7 +36,11 @@ desc 'foo'
 task :foo do
   configure do
     file '/tmp/foo.txt' do
-      ensure_line 'foo bar baz'
+      ensure_line 'foo'
+    end
+
+    file '/tmp/bar.txt' do
+      'bar'
     end
   end
 end

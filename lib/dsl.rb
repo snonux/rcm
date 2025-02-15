@@ -2,7 +2,8 @@ require_relative 'config'
 require_relative 'options'
 require_relative 'log'
 
-Dir["#{Dir.pwd}/lib/dslkeywords/*.rb"].each { |m| require m }
+require_relative 'dslkeywords/file'
+require_relative 'dslkeywords/only_when'
 
 # Ruby Configiration Management system
 module RCM
@@ -23,13 +24,13 @@ module RCM
 
     def initialize(reset)
       DSL.reset! if reset
-      @id = "#{self.class}(#{@@rcm_counter += 1})"
+      @id = "DSL[#{@@rcm_counter += 1}]"
       @conds_met = true
       @scheduled = []
       yield self if block_given?
     end
 
-    def to_s = "RCM #{@number}"
+    def to_s = @id
     def evaluate! = @scheduled.each(&:evaluate!)
 
     def <<(obj)
