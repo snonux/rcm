@@ -21,17 +21,10 @@ class RCMDependencyTest < Minitest::Test
   end
 
   def test_depends_on_invalid_resource
-    correct_exception_thrown = false
-
-    configure_from_scratch do
-      notify 'foo' do
-        depends_on invalid['baz']
-        :foo_message
+    assert_raises(RCM::ResourceDependencies::NoSuchResourceType) do
+      configure_from_scratch do
+        notify { depends_on invalid['baz'] }
       end
-    rescue RCM::ResourceDependencies::NoSuchResource
-      correct_exception_thrown = true
     end
-
-    assert correct_exception_thrown
   end
 end

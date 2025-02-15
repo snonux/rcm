@@ -19,10 +19,10 @@ module RCM
       def [](other) = "#{@name}['#{other}']"
     end
 
-    class NoSuchResource < StandardError; end
+    class NoSuchResourceType < StandardError; end
 
     def method_missing(method_name)
-      raise NoSuchResource, "No such resource: #{method_name}" unless @valid_resources.include?(method_name)
+      raise NoSuchResourceType, "No such resource type: #{method_name}" unless @valid_resources.include?(method_name)
 
       SyntaxSugar.new(method_name)
     end

@@ -20,10 +20,10 @@ module RCM
 
   # Add notify keyword to the DSL
   class DSL
-    def notify(message, &block)
+    def notify(message = nil, &block)
       return unless @conds_met
 
-      n = Notify.new(message)
+      n = Notify.new(message.nil? ? '' : message)
       n.message(n.instance_eval(&block)) if block
       self << n
       n
