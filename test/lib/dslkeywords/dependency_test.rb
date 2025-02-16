@@ -5,25 +5,38 @@ require_relative '../../../lib/dsl'
 
 class RCMDependencyTest < Minitest::Test
   def test_depends_on
+    foo = nil
+    bar = nil
+    baz = nil
+
     configure_from_scratch do
-      notify 'foo' do
-        depends_on notify['bar'], notify['baz']
+      foo = notify 'foo' do
+        depends_on notify 'bar', 'baz'
         :foo_message
       end
 
-      notify 'bar'
+      bar = notify 'bar'
 
-      notify 'baz' do
-        depends_on notify['bar']
+      baz = notify 'baz' do
+        depends_on notify 'bar'
         :baz_message
       end
     end
+
+    assert_equal 2, foo.depends_on.keys.length
+    assert foo.depends_on?("notify('bar')")
+    assert foo.depends_on?("notify('baz')")
+
+    assert_equal 0, bar.depends_on.keys.length
+
+    assert_equal 1, baz.depends_on.keys.length
+    assert baz.depends_on?("notify('bar')")
   end
 
   def test_depends_on_invalid_resource
     assert_raises(RCM::ResourceDependencies::NoSuchResourceType) do
       configure_from_scratch do
-        notify { depends_on invalid['baz'] }
+        notify { depends_on invalid('baz') }
       end
     end
   end
