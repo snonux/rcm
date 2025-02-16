@@ -69,12 +69,16 @@ module RCM
 
     class NoSuchResourceObject < StandardError; end
 
+    @@resource_find_cache = {}
+
     def self.find(id)
+      return @@resource_find_cache[id] if @@resource_find_cache.key?(id)
+
       klass = Object.const_get("RCM::#{id.split('(').first.capitalize}")
       resource = ObjectSpace.each_object(klass).find { _1.id == id }
       raise NoSuchResourceObject, "Unable to find resource #{id}" if resource.nil?
 
-      resource
+      @@resource_find_cache[id] = resource
     end
   end
 end
