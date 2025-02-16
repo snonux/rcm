@@ -29,19 +29,42 @@ module RCM
 
       others.flatten.each do |other|
         info "Registered dependency on #{other}"
-        @depends_on[other] = {}
+        @depends_on[other] = nil
       end
     end
 
-    def depends_on?(*others)
-      return false if @depends_on.nil?
+    def depends_on?(*others) = others.flatten.none? { |other| !@depends_on&.key?(other) }
+  end
 
-      others.flatten.none? { |other| !@depends_on.key?(other) }
+  # To resolve dependencies
+  module DependencyEvaluator
+    attr_reader :evaluated
+
+    def evaluate!
+      return false if @evaluated
+
+      @depends_on = {} if @depends_on.nil?
+      @depends_on.each_key do |id|
+        dependency = Resource.find(id)
+      end
+
+      @evaluated = true
     end
   end
 
   # A resource is something concrete to be managed, e.g. a file, or a CRON job.
   class Resource < Keyword
+    include DependencyEvaluator
     include ResourceDependencies
+
+    class NoSuchResourceObject < StandardError; end
+
+    def self.find(id)
+      klass = Object.const_get("RCM::#{id.split('(').first.capitalize}")
+      resource = ObjectSpace.each_object(klass).find { |obj| obj.id == id }
+      raise NoSuchResourceObject, "Unable to find resource #{id}" if resource.nil?
+
+      resource
+    end
   end
 end

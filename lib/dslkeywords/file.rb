@@ -25,6 +25,7 @@ module RCM
     def ensure_line(line) = @ensure_line = line
 
     def evaluate!
+      return unless super
       return evaluate_ensure_line! unless @ensure_line.nil?
 
       write_content!(real_content)

@@ -27,6 +27,7 @@ class RCMDependencyTest < Minitest::Test
     assert foo.depends_on?("notify('bar')", "notify('baz')")
 
     assert_equal 0, bar.depends_on.keys.length
+    refute bar.depends_on?('foo')
 
     assert_equal 1, baz.depends_on.keys.length
     assert baz.depends_on?("notify('bar')")
@@ -36,6 +37,14 @@ class RCMDependencyTest < Minitest::Test
     assert_raises(RCM::ResourceDependencies::NoSuchResourceType) do
       configure_from_scratch do
         notify { depends_on invalid('baz') }
+      end
+    end
+  end
+
+  def test_depends_on_non_existant_dependency
+    assert_raises(RCM::Resource::NoSuchResourceObject) do
+      configure_from_scratch do
+        notify { depends_on notify('nonexistant') }
       end
     end
   end
