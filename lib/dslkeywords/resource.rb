@@ -7,6 +7,7 @@ module RCM
   module ResourceDependencies
     def initialize(...)
       super(...)
+      @depends_on = {}
       @valid_resources = Set.new
       ObjectSpace.each_object(Class).each do |klass|
         @valid_resources << klass.to_s.sub('RCM::', '').downcase.to_sym if klass < Resource
@@ -24,7 +25,6 @@ module RCM
     def respond_to_missing? = true
 
     def depends_on(*others)
-      @depends_on = {} if @depends_on.nil?
       return @depends_on if others.empty?
 
       others.flatten.each do |other|
@@ -49,7 +49,6 @@ module RCM
       raise DependencyLoop, "Dependency loop detected for #{id}" if @loop_detection
 
       @loop_detection = true
-      @depends_on = {} if @depends_on.nil?
 
       # Try to evaluate all dependencies recursively.
       @depends_on.each_key.map { Resource.find(_1) }.each(&:evaluate!)
