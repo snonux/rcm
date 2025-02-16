@@ -7,7 +7,7 @@ module RCM
   module ResourceDependencies
     def initialize(...)
       super(...)
-      @depends_on = {}
+      @depends_on = Set.new
       @valid_resources = Set.new
       ObjectSpace.each_object(Class).each do |klass|
         @valid_resources << klass.to_s.sub('RCM::', '').downcase.to_sym if klass < Resource
@@ -29,11 +29,11 @@ module RCM
 
       others.flatten.each do |other|
         info "Registered dependency on #{other}"
-        @depends_on[other] = nil
+        @depends_on << other
       end
     end
 
-    def depends_on?(*others) = others.flatten.none? { |other| !@depends_on&.key?(other) }
+    def depends_on?(*others) = others.flatten.none? { |other| !@depends_on&.include?(other) }
   end
 
   # To resolve dependencies
@@ -51,10 +51,10 @@ module RCM
       @loop_detection = true
 
       # Try to evaluate all dependencies recursively.
-      @depends_on.each_key.map { Resource.find(_1) }.each(&:evaluate!)
+      @depends_on.each.map { Resource.find(_1) }.each(&:evaluate!)
 
       # Raise an exception when there are still unresolved dependencies.
-      unresolved = @depends_on.each_key.map { Resource.find(_1) }.reject(&:evaluated)
+      unresolved = @depends_on.each.map { Resource.find(_1) }.reject(&:evaluated)
       raise UnresolvedDependency, "Unresolved dependencies: #{unresolved.map(&:id)}" if unresolved.count.positive?
 
       @loop_detection = false

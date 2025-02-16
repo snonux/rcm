@@ -23,13 +23,13 @@ class RCMDependencyTest < Minitest::Test
       end
     end
 
-    assert_equal 2, foo.depends_on.keys.length
+    assert_equal 2, foo.depends_on.count
     assert foo.depends_on?("notify('bar')", "notify('baz')")
 
-    assert_equal 0, bar.depends_on.keys.length
+    assert_equal 0, bar.depends_on.count
     refute bar.depends_on?('foo')
 
-    assert_equal 1, baz.depends_on.keys.length
+    assert_equal 1, baz.depends_on.count
     assert baz.depends_on?("notify('bar')")
   end
 
