@@ -33,7 +33,11 @@ module RCM
       end
     end
 
-    def depends_on?(other) = @depends_on.nil? ? false : @depends_on.key?(other)
+    def depends_on?(*others)
+      return false if @depends_on.nil?
+
+      others.flatten.none? { |other| !@depends_on.key?(other) }
+    end
   end
 
   # A resource is something concrete to be managed, e.g. a file, or a CRON job.

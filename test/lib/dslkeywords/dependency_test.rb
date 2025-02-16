@@ -24,8 +24,7 @@ class RCMDependencyTest < Minitest::Test
     end
 
     assert_equal 2, foo.depends_on.keys.length
-    assert foo.depends_on?("notify('bar')")
-    assert foo.depends_on?("notify('baz')")
+    assert foo.depends_on?("notify('bar')", "notify('baz')")
 
     assert_equal 0, bar.depends_on.keys.length
 
