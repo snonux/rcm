@@ -40,14 +40,25 @@ module RCM
   module DependencyEvaluator
     attr_reader :evaluated
 
+    class DependencyLoop < StandardError; end
+    class UnresolvedDependency < StandardError; end
+
     def evaluate!
       return false if @evaluated
 
-      @depends_on = {} if @depends_on.nil?
-      @depends_on.each_key do |id|
-        dependency = Resource.find(id)
-      end
+      raise DependencyLoop, "Dependency loop detected for #{id}" if @loop_detection
 
+      @loop_detection = true
+      @depends_on = {} if @depends_on.nil?
+
+      # Try to evaluate all dependencies recursively.
+      @depends_on.each_key.map { Resource.find(_1) }.each(&:evaluate!)
+
+      # Raise an exception when there are still unresolved dependencies.
+      unresolved = @depends_on.each_key.map { Resource.find(_1) }.reject(&:evaluated)
+      raise UnresolvedDependency, "Unresolved dependencies: #{unresolved.map(&:id)}" if unresolved.count.positive?
+
+      @loop_detection = false
       @evaluated = true
     end
   end
@@ -61,7 +72,7 @@ module RCM
 
     def self.find(id)
       klass = Object.const_get("RCM::#{id.split('(').first.capitalize}")
-      resource = ObjectSpace.each_object(klass).find { |obj| obj.id == id }
+      resource = ObjectSpace.each_object(klass).find { _1.id == id }
       raise NoSuchResourceObject, "Unable to find resource #{id}" if resource.nil?
 
       resource

@@ -48,4 +48,21 @@ class RCMDependencyTest < Minitest::Test
       end
     end
   end
+
+  def test_dependency_loop
+    assert_raises(RCM::DependencyEvaluator::DependencyLoop) do
+      configure_from_scratch do
+        notify('loop') { depends_on notify('loop') }
+      end
+    end
+  end
+
+  def test_dependency_loop_indirect
+    assert_raises(RCM::DependencyEvaluator::DependencyLoop) do
+      configure_from_scratch do
+        notify('loop') { depends_on notify('pool') }
+        notify('pool') { depends_on notify('loop') }
+      end
+    end
+  end
 end
