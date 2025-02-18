@@ -50,10 +50,30 @@ class RCMFileTest < Minitest::Test
     assert_equal 'One plus two is 3!', File.read(FILE_PATH)
   end
 
-  def test_ensure_line
+  def test_line
     File.write(FILE_PATH, "Hey there\n")
-    configure_from_scratch { file(FILE_PATH) { ensure_line 'Whats up?' } }
+    configure_from_scratch { file(FILE_PATH) { line 'Whats up?' } }
     assert_equal "Hey there\nWhats up?\n", File.read(FILE_PATH)
+  end
+
+  def test_line_absent
+    File.write(FILE_PATH, "Hey there\nWhats up?")
+    configure_from_scratch do
+      file(FILE_PATH) do
+        line 'Whats up?'
+        is :absent
+      end
+    end
+    assert_equal 'Hey there', File.read(FILE_PATH)
+
+    File.write(FILE_PATH, "Hey there\nWhats up?")
+    configure_from_scratch do
+      file(FILE_PATH) do
+        line 'Hey there'
+        is :absent
+      end
+    end
+    assert_equal 'Whats up?', File.read(FILE_PATH)
   end
 
   def test_create_parent_directory

@@ -22,9 +22,12 @@ module RCM
   class File < Resource
     include FileBackup
 
+    class UnsupportedOperation < StandardError; end
+
     def initialize(file_path)
       super(file_path)
       @file_path = file_path
+      @is = :installed
     end
 
     def content(text = nil)
@@ -36,7 +39,7 @@ module RCM
     def create_parent_directory = @create_parent = true
     def from_sourcefile = @from_sourcefile = true
     def from_template = @from_template = true
-    def ensure_line(line) = @ensure_line = line
+    def line(line) = @ensure_line = line
 
     def path(file_path = nil)
       return @file_path if file_path.nil?
@@ -44,17 +47,23 @@ module RCM
       @file_path = file_path
     end
 
+    def is(what)
+      @is = what.to_sym
+      raise UnsupportedOperation, "Unsupported operation #{@is}" unless %i[present absent].include?(@is)
+    end
+
     def evaluate!
       return unless super
       return evaluate_ensure_line! unless @ensure_line.nil?
 
-      write_content!(real_content)
+      write!(real_content)
     end
 
     private
 
     def evaluate_ensure_line!
-      return write_content!(@ensure_line) unless ::File.file?(@file_path)
+      return evaluate_ensure_line_absent! if @is == :absent
+      return write!(@ensure_line) unless ::File.file?(@file_path)
       return if ::File.readlines(@file_path, chomp: true).include?(@ensure_line)
 
       ::File.open(@file_path, 'a') do |fd|
@@ -62,7 +71,15 @@ module RCM
       end
     end
 
-    def write_content!(text)
+    def evaluate_ensure_line_absent!
+      return unless ::File.file?(@file_path)
+
+      write!(::File.readlines(@file_path, chomp: true).reject do |line|
+               line == @ensure_line
+             end.join("\n"))
+    end
+
+    def write!(text)
       info "Managing file #{@file_path}"
 
       create_parent_directory!
