@@ -8,6 +8,8 @@ module RCM
   # Backup the file on change
   module FileBackup
     def backup!(file_path, checksum)
+      return if @without_backup
+
       backup_dir = "#{::File.dirname(file_path)}/.rcm"
       Dir.mkdir(backup_dir) unless ::File.directory?(backup_dir)
       backup_path = "#{backup_dir}/#{::File.basename(file_path)}.#{checksum}"
@@ -39,6 +41,7 @@ module RCM
     def create_parent_directory = @create_parent = true
     def from_sourcefile = @from_sourcefile = true
     def from_template = @from_template = true
+    def without_backup = @without_backup = true
     def line(line) = @ensure_line = line
 
     def path(file_path = nil)
@@ -49,17 +52,13 @@ module RCM
 
     def is(what)
       @is = what.to_sym
-      raise UnsupportedOperation, "Unsupported operation #{@is}" unless %i[present absent].include?(@is)
+      raise UnsupportedOperation, "Unsupported operation #{@is}" unless %i[present absent clean].include?(@is)
     end
 
     def evaluate!
       return unless super
       return evaluate_ensure_line! unless @ensure_line.nil?
-
-      if @is == :absent
-        ::File.delete(@file_path) if ::File.exist?(@file_path)
-        return
-      end
+      return evaluate_absent! if %i[absent clean].include?(@is)
 
       write!(real_content)
     end
@@ -67,7 +66,7 @@ module RCM
     private
 
     def evaluate_ensure_line!
-      return evaluate_ensure_line_absent! if @is == :absent
+      return evaluate_ensure_line_absent! if %i[absent clean].include?(@is)
       return write!(@ensure_line) unless ::File.file?(@file_path)
       return if ::File.readlines(@file_path, chomp: true).include?(@ensure_line)
 
@@ -82,6 +81,21 @@ module RCM
       write!(::File.readlines(@file_path, chomp: true).reject do |line|
                line == @ensure_line
              end.join("\n"))
+    end
+
+    def evaluate_absent!
+      if ::File.exist?(@file_path)
+        info("Deleting #{@file_path}")
+        ::File.delete(@file_path)
+      end
+      return unless @is == :clean
+
+      parent_dir = ::File.dirname(@file_path)
+      while Dir.empty?(parent_dir)
+        info("Deleting empty parent directory #{parent_dir}")
+        Dir.rmdir(parent_dir)
+        parent_dir = ::File.dirname(parent_dir)
+      end
     end
 
     def write!(text)

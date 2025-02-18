@@ -41,6 +41,29 @@ class RCMFileTest < Minitest::Test
     refute File.file?(FILE_PATH)
   end
 
+  def test_file_absent_with_empty_directory
+    file_path = "#{DIR_PATH}/test_file_absent_with_empty_directory/bar/baz/foo.txt"
+
+    configure_from_scratch do
+      file :create_file_empty_directory_test do
+        path file_path
+        create_parent_directory
+        is :present
+        :text
+      end
+
+      file :delete_file_empty_directory_test do
+        path file_path
+        depends_on file :create_file_empty_directory_test
+        is :clean
+      end
+    end
+
+    refute File.file?(file_path)
+    refute File.directory?(File.dirname(file_path))
+    refute File.directory?(File.dirname(File.dirname(file_path)))
+  end
+
   def test_create_file_from_sourcefile
     text = 'Hello World!'
     source_path = "#{FILE_PATH}.source.rcmtmp"
