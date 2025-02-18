@@ -3,6 +3,7 @@ require 'erb'
 require 'fileutils'
 
 require_relative 'resource'
+require_relative '../chained'
 
 module RCM
   # Backup the file on change
@@ -23,6 +24,7 @@ module RCM
   # Managing files
   class File < Resource
     include FileBackup
+    include Chained
 
     class UnsupportedOperation < StandardError; end
 
@@ -46,6 +48,7 @@ module RCM
     def without(what) = @without_backup = validate_op(__method__, what, backup) == backup
     def from(what) = @from = validate_op(__method__, what, sourcefile, template)
 
+    # TODO: Delete this, as should not be required anymore due to Chained module
     def method_missing(method_name, *args)
       if %i[present absent directory backup sourcefile template].include?(method_name)
         method_name

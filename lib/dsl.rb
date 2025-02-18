@@ -1,9 +1,10 @@
 require_relative 'config'
 require_relative 'options'
 require_relative 'log'
+require_relative 'chained'
 
 require_relative 'dslkeywords/file'
-require_relative 'dslkeywords/only_when'
+require_relative 'dslkeywords/given'
 require_relative 'dslkeywords/notify'
 
 # Ruby Configiration Management system
@@ -22,6 +23,7 @@ module RCM
     include Config
     include Options
     include Log
+    include Chained
 
     class DuplicateResource < StandardError; end
 

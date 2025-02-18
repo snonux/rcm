@@ -26,13 +26,13 @@ class RCMFileTest < Minitest::Test
 
   def test_file_absent
     configure_from_scratch do
-      file :create_file do
+      file create do
         path FILE_PATH
         is present
-        :text
+        the text
       end
 
-      file :delete_file do
+      file delete do
         path FILE_PATH
         is absent
       end
@@ -45,17 +45,17 @@ class RCMFileTest < Minitest::Test
     file_path = "#{DIR_PATH}/test_file_absent_with_empty_directory/bar/baz/foo.txt"
 
     configure_from_scratch do
-      file :create_file_empty_directory_test do
+      file create File empty directory do
         path file_path
         manage directory
-        :text
+        the text
       end
 
-      file :delete_file_empty_directory_test do
+      file delete File empty directory do
         path file_path
         is absent
         manage directory
-        requires file :create_file_empty_directory_test
+        requires file create File empty directory
       end
     end
 
@@ -99,7 +99,7 @@ class RCMFileTest < Minitest::Test
   def test_line_absent
     File.write(FILE_PATH, "Hey there\nWhats up?")
     configure_from_scratch do
-      file(FILE_PATH) do
+      file FILE_PATH do
         line 'Whats up?'
         is absent
       end
@@ -108,7 +108,7 @@ class RCMFileTest < Minitest::Test
 
     File.write(FILE_PATH, "Hey there\nWhats up?")
     configure_from_scratch do
-      file(FILE_PATH) do
+      file FILE_PATH do
         line 'Hey there'
         is absent
       end
@@ -135,16 +135,16 @@ class RCMFileTest < Minitest::Test
     backup_path = "#{DIR_PATH}/foo/.rcm/backup-me.txt.d4c3af73588ce06c32ed04d1b79801286109ea265712a2bd3fdc3ed01c82bb86"
 
     configure_from_scratch do
-      file :original do
+      file original do
         path file_path
         manage directory
         original_content
       end
 
-      file :new do
+      file new do
         path file_path
         manage directory
-        requires file(:original)
+        requires file original
         :new_content
       end
     end

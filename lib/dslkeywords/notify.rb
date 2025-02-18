@@ -2,10 +2,13 @@ require 'erb'
 require 'fileutils'
 
 require_relative 'resource'
+require_relative '../chained'
 
 module RCM
   # Only to print out something
   class Notify < Resource
+    include Chained
+
     def initialize(message)
       super(message)
       @message = message

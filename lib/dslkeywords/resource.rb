@@ -26,6 +26,12 @@ module RCM
       return @requires if others.empty?
 
       others.flatten.each do |other|
+        unless other.include?('(')
+          # Convert "notify foo" to "notify('foo')"
+          resource, rest = other.split(' ', 2)
+          other = "#{resource}('#{rest}')"
+        end
+
         info "Registered dependency on #{other}"
         @requires << other
       end
@@ -74,7 +80,7 @@ module RCM
     def self.find(id)
       return @@resource_find_cache[id] if @@resource_find_cache.key?(id)
 
-      klass = Object.const_get("RCM::#{id.split('(').first.capitalize}")
+      klass = Object.const_get("RCM::#{id.split(/[( ]/).first.capitalize}")
       resource = ObjectSpace.each_object(klass).find { _1.id == id }
       raise NoSuchResourceObject, "Unable to find resource #{id}" if resource.nil?
 

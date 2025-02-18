@@ -3,8 +3,8 @@ require 'socket'
 require_relative 'keyword'
 
 module RCM
-  # OnlyWhen (e.g. run on host foo)
-  class OnlyWhen < Keyword
+  # Given (e.g. run on host foo)
+  class Given < Keyword
     def initialize(dsl_id)
       super(dsl_id)
       @conds = {}
@@ -23,8 +23,8 @@ module RCM
 
   # Add 'only_when' to DSL
   class DSL
-    def only_when(&block)
-      conds = OnlyWhen.new(id)
+    def given(&block)
+      conds = Given.new(id)
       conds.instance_eval(&block)
       @conds_met = conds.met?
     end
