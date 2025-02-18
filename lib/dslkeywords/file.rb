@@ -41,20 +41,20 @@ module RCM
     def line(line) = @ensure_line = line
     def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
 
-    # TODO: Replace :is with current method name dynamically
-    def is(what) = @is = validate_op(:is, what, present, absent)
-    def present = :present
-    def absent = :absent
+    def is(what) = @is = validate_op(__method__, what, present, absent)
+    def manage(what) = @manage_directory = validate_op(__method__, what, directory) == directory
+    def without(what) = @without_backup = validate_op(__method__, what, backup) == backup
+    def from(what) = @from = validate_op(__method__, what, sourcefile, template)
 
-    def manage(what) = @manage_directory = validate_op(:is, what, directory) == directory
-    def directory = :directory
+    def method_missing(method_name, *args)
+      if %i[present absent directory backup sourcefile template].include?(method_name)
+        method_name
+      else
+        super
+      end
+    end
 
-    def without(what) = @without_backup = validate_op(:without, what, backup) == backup
-    def backup = :backup
-
-    def from(what) = @from = validate_op(:from, what, sourcefile, template)
-    def sourcefile = :sourcefile
-    def template = :template
+    def respond_to_missing? = true
 
     def evaluate!
       return unless super

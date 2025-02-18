@@ -38,9 +38,8 @@ desc 'foo'
 task :foo do
   configure do
     file '/tmp/foo.txt' do
-      line ensure_line 'foo'
-      # TODO: Rename to requires
-      depends_on file '/tmp/bar.txt'
+      line 'foo'
+      requires file '/tmp/bar.txt'
     end
 
     file '/tmp/bar.txt' do

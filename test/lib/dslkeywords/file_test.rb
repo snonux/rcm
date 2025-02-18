@@ -55,7 +55,7 @@ class RCMFileTest < Minitest::Test
         path file_path
         is absent
         manage directory
-        depends_on file :create_file_empty_directory_test
+        requires file :create_file_empty_directory_test
       end
     end
 
@@ -144,7 +144,7 @@ class RCMFileTest < Minitest::Test
       file :new do
         path file_path
         manage directory
-        depends_on file(:original)
+        requires file(:original)
         :new_content
       end
     end
