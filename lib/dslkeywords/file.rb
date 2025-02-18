@@ -68,7 +68,7 @@ module RCM
       create_parent_directory!
       debug text if option :debug
 
-      tmp_path = "#{@file_path}.tmp"
+      tmp_path = "#{@file_path}.rcmtmp"
       ::File.write(tmp_path, text)
 
       if ::File.file?(@file_path)

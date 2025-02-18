@@ -4,8 +4,8 @@ require 'fileutils'
 require_relative '../../../lib/dsl'
 
 class RCMFileTest < Minitest::Test
-  FILE_PATH = './.file_test.tmp'.freeze
-  DIR_PATH = './.dir_test.tmp'.freeze
+  FILE_PATH = './.file_test.rcmtmp'.freeze
+  DIR_PATH = './.dir_test.rcmtmp'.freeze
 
   Minitest.after_run do
     File.unlink(FILE_PATH) if File.file?(FILE_PATH)
@@ -26,7 +26,7 @@ class RCMFileTest < Minitest::Test
 
   def test_create_file_from_sourcefile
     text = 'Hello World!'
-    source_path = "#{FILE_PATH}.source.tmp"
+    source_path = "#{FILE_PATH}.source.rcmtmp"
     File.write(source_path, text)
 
     configure_from_scratch do
