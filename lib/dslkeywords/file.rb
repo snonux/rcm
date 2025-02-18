@@ -7,12 +7,9 @@ require_relative 'resource'
 module RCM
   # Backup the file on change
   module FileBackup
-    def backup!(path)
-      return unless ::File.exist?(path)
-
+    def backup!(path, checksum)
       backup_dir = "#{::File.dirname(path)}/.rcm"
       Dir.mkdir(backup_dir) unless ::File.directory?(backup_dir)
-      checksum = Digest::SHA256.file(path).hexdigest
       backup_path = "#{backup_dir}/#{::File.basename(path)}.#{checksum}"
       return if ::File.exist?(backup_path)
 
@@ -62,12 +59,25 @@ module RCM
     end
 
     def write_content!(text)
+      info "Managing file #{@path}"
+
       create_parent_directory!
       debug text if option :debug
-      info "Managing file #{@path}"
+
       tmp_path = "#{@path}.tmp"
       ::File.write(tmp_path, text)
-      backup!(@path)
+
+      if ::File.file?(@path)
+        checksum = Digest::SHA256.file(@path).hexdigest
+        tmp_checksum = Digest::SHA256.file(tmp_path).hexdigest
+
+        if tmp_checksum == checksum
+          ::File.delete(tmp_path) # File has not changed, not doing anything
+          return
+        end
+        backup!(@path, checksum) # File changed, backup!
+      end
+
       ::File.rename(tmp_path, @path)
     end
 
