@@ -56,6 +56,11 @@ module RCM
       return unless super
       return evaluate_ensure_line! unless @ensure_line.nil?
 
+      if @is == :absent
+        ::File.delete(@file_path) if ::File.exist?(@file_path)
+        return
+      end
+
       write!(real_content)
     end
 

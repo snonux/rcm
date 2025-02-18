@@ -24,6 +24,23 @@ class RCMFileTest < Minitest::Test
     assert_equal arr.join("\n"), File.read(FILE_PATH)
   end
 
+  def test_file_absent
+    configure_from_scratch do
+      file :create_file do
+        path FILE_PATH
+        is :present
+        :text
+      end
+
+      file :delete_file do
+        path FILE_PATH
+        is :absent
+      end
+    end
+
+    refute File.file?(FILE_PATH)
+  end
+
   def test_create_file_from_sourcefile
     text = 'Hello World!'
     source_path = "#{FILE_PATH}.source.rcmtmp"
