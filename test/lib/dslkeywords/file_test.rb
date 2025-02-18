@@ -68,4 +68,28 @@ class RCMFileTest < Minitest::Test
     assert File.exist?(file_path)
     assert_equal :content, File.read(file_path).to_sym
   end
+
+  def test_backup
+    file_path = "#{DIR_PATH}/foo/backup-me.txt"
+    original_content = 'original_content'
+    backup_path = "#{DIR_PATH}/foo/.rcm/backup-me.txt.d4c3af73588ce06c32ed04d1b79801286109ea265712a2bd3fdc3ed01c82bb86"
+
+    configure_from_scratch do
+      file :original do
+        path file_path
+        create_parent_directory
+        original_content
+      end
+
+      file :new do
+        path file_path
+        create_parent_directory
+        depends_on file(:original)
+        :new_content
+      end
+    end
+
+    assert File.file?(backup_path)
+    assert_equal original_content, File.read(backup_path)
+  end
 end
