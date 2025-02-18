@@ -1,7 +1,6 @@
 # TODO
 
 * Recursively install a directory
-* Backup of files when changed
 * Support for file deletion
 * Support for file modes (owner, chmod)
 * Support for symlinks

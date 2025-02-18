@@ -69,6 +69,8 @@ module RCM
 
     class NoSuchResourceObject < StandardError; end
 
+    # TODO: Detect duplicate resource definition
+
     @@resource_find_cache = {}
 
     def self.find(id)

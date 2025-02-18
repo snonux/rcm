@@ -1,12 +1,31 @@
+require 'digest'
 require 'erb'
 require 'fileutils'
 
 require_relative 'resource'
 
 module RCM
+  # Backup the file on change
+  module FileBackup
+    def backup!(path)
+      return unless ::File.exist?(path)
+
+      backup_dir = "#{::File.dirname(path)}/.rcm"
+      Dir.mkdir(backup_dir) unless ::File.directory?(backup_dir)
+      checksum = Digest::SHA256.file(path).hexdigest
+      backup_path = "#{backup_dir}/#{::File.basename(path)}.#{checksum}"
+      return if ::File.exist?(backup_path)
+
+      info("Backing up #{path} -> #{backup_path}")
+      ::File.rename(path, backup_path)
+    end
+  end
+
   # Managing files
   class File < Resource
     attr_reader :path
+
+    include FileBackup
 
     def initialize(path)
       super(path)
@@ -45,9 +64,10 @@ module RCM
     def write_content!(text)
       create_parent_directory!
       debug text if option :debug
-      info "Creating file #{@path}"
+      info "Managing file #{@path}"
       tmp_path = "#{@path}.tmp"
       ::File.write(tmp_path, text)
+      backup!(@path)
       ::File.rename(tmp_path, @path)
     end
 
