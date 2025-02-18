@@ -7,41 +7,80 @@ module RCM
   module ResourceDependencies
     def initialize(...)
       super(...)
+      @depends_on = Set.new
       @valid_resources = Set.new
       ObjectSpace.each_object(Class).each do |klass|
         @valid_resources << klass.to_s.sub('RCM::', '').downcase.to_sym if klass < Resource
       end
     end
 
-    # Only to have the resourcename[id] syntax available in the DSL
-    class SyntaxSugar
-      def initialize(name) = @name = name
-      def [](other) = "#{@name}['#{other}']"
-    end
-
     class NoSuchResourceType < StandardError; end
 
-    def method_missing(method_name)
+    def method_missing(method_name, *args)
       raise NoSuchResourceType, "No such resource type: #{method_name}" unless @valid_resources.include?(method_name)
 
-      SyntaxSugar.new(method_name)
+      args.map { |arg| "#{method_name}('#{arg}')" }
     end
 
     def respond_to_missing? = true
 
     def depends_on(*others)
-      @dependencies = {} if @dependencies.nil?
-      others.each do |other|
+      return @depends_on if others.empty?
+
+      others.flatten.each do |other|
         info "Registered dependency on #{other}"
-        @dependencies[other] = {}
+        @depends_on << other
       end
     end
 
-    def dependencies = @dependencies.nil ? [] : @dependencies
+    def depends_on?(*others) = others.flatten.none? { |other| !@depends_on&.include?(other) }
+  end
+
+  # To resolve dependencies
+  module DependencyEvaluator
+    attr_reader :evaluated
+
+    class DependencyLoop < StandardError; end
+    class UnresolvedDependency < StandardError; end
+
+    def evaluate!
+      return false if @evaluated
+
+      raise DependencyLoop, "Dependency loop detected for #{id}" if @loop_detection
+
+      @loop_detection = true
+
+      # Try to evaluate all dependencies recursively.
+      @depends_on.each.map { Resource.find(_1) }.each(&:evaluate!)
+
+      # Raise an exception when there are still unresolved dependencies.
+      unresolved = @depends_on.each.map { Resource.find(_1) }.reject(&:evaluated)
+      raise UnresolvedDependency, "Unresolved dependencies: #{unresolved.map(&:id)}" if unresolved.count.positive?
+
+      @loop_detection = false
+      @evaluated = true
+    end
   end
 
   # A resource is something concrete to be managed, e.g. a file, or a CRON job.
   class Resource < Keyword
+    include DependencyEvaluator
     include ResourceDependencies
+
+    class NoSuchResourceObject < StandardError; end
+
+    # TODO: Detect duplicate resource definition
+
+    @@resource_find_cache = {}
+
+    def self.find(id)
+      return @@resource_find_cache[id] if @@resource_find_cache.key?(id)
+
+      klass = Object.const_get("RCM::#{id.split('(').first.capitalize}")
+      resource = ObjectSpace.each_object(klass).find { _1.id == id }
+      raise NoSuchResourceObject, "Unable to find resource #{id}" if resource.nil?
+
+      @@resource_find_cache[id] = resource
+    end
   end
 end

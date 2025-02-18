@@ -25,7 +25,7 @@ module RCM
 
     def initialize(reset)
       DSL.reset! if reset
-      @id = "dsl[#{@@rcm_counter += 1}]"
+      @id = "dsl(#{@@rcm_counter += 1})"
       @conds_met = true
       @scheduled = []
       yield self if block_given?

@@ -16,7 +16,6 @@
 * Binary installation support (file copy from source to dest)
   * Local file system
   * scp? git? http/s?
-* Object dependencies / ensuring correct order of evaluation
 * Manage services (start, stop, restart (subscribe))
 * Manage packages (install, update, deinstall)
   * Fedora

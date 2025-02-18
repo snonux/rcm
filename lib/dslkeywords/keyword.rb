@@ -9,7 +9,7 @@ module RCM
     include Options
     include Log
 
-    def initialize(name) = @id = "#{self.class.to_s.sub('RCM::', '').downcase}['#{name}']"
+    def initialize(name) = @id = "#{self.class.to_s.sub('RCM::', '').downcase}('#{name}')"
     def to_s = @id
   end
 end

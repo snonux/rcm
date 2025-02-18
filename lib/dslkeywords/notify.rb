@@ -15,7 +15,11 @@ module RCM
       @message = msg unless msg.nil?
     end
 
-    def evaluate! = puts "#{id} => #{@message}"
+    def evaluate!
+      return unless super
+
+      puts "#{id} => #{@message}"
+    end
   end
 
   # Add notify keyword to the DSL
