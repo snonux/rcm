@@ -38,34 +38,23 @@ module RCM
       @content = text.instance_of?(Array) ? text.join("\n") : text
     end
 
-    def manage(what)
-      what = what.to_sym
-      raise UnsupportedOperation, "Unsupported 'manage' operation #{what}" unless %i[directory].include?(what)
-
-      @manage_directory = true
-    end
-
-    def directory = :directory
-
-    def from_sourcefile = @from_sourcefile = true
-    def from_template = @from_template = true
-    def without_backup = @without_backup = true # TODO: Rename to 'without backup'
     def line(line) = @ensure_line = line
+    def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
 
-    def path(file_path = nil)
-      return @file_path if file_path.nil?
-
-      @file_path = file_path
-    end
-
-    def is(what)
-      @is = what.to_sym
-      raise UnsupportedOperation, "Unsupported 'is' operation #{@is}" unless %i[present absent].include?(@is)
-    end
-
-    # To allow 'is present'
+    # TODO: Replace :is with current method name dynamically
+    def is(what) = @is = validate_op(:is, what, present, absent)
     def present = :present
     def absent = :absent
+
+    def manage(what) = @manage_directory = validate_op(:is, what, directory) == directory
+    def directory = :directory
+
+    def without(what) = @without_backup = validate_op(:without, what, backup) == backup
+    def backup = :backup
+
+    def from(what) = @from = validate_op(:from, what, sourcefile, template)
+    def sourcefile = :sourcefile
+    def template = :template
 
     def evaluate!
       return unless super
@@ -76,6 +65,13 @@ module RCM
     end
 
     private
+
+    def validate_op(matter, what, *valids)
+      what = what.to_sym
+      raise UnsupportedOperation, "Unsupported '#{matter}' operation #{what}" unless valids.include?(what)
+
+      what
+    end
 
     def evaluate_ensure_line!
       return evaluate_ensure_line_absent! if %i[absent].include?(@is)
@@ -142,8 +138,8 @@ module RCM
     end
 
     def real_content
-      text = @from_sourcefile ? ::File.read(@content) : @content
-      @from_template ? ERB.new(text).result : text
+      text = @from == sourcefile ? ::File.read(@content) : @content
+      @from == template ? ERB.new(text).result : text
     end
   end
 

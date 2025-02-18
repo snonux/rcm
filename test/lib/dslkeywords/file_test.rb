@@ -28,13 +28,13 @@ class RCMFileTest < Minitest::Test
     configure_from_scratch do
       file :create_file do
         path FILE_PATH
-        is :present
+        is present
         :text
       end
 
       file :delete_file do
         path FILE_PATH
-        is :absent
+        is absent
       end
     end
 
@@ -71,7 +71,7 @@ class RCMFileTest < Minitest::Test
 
     configure_from_scratch do
       file FILE_PATH do
-        from_sourcefile
+        from sourcefile
         source_path
       end
     end
@@ -83,7 +83,7 @@ class RCMFileTest < Minitest::Test
   def test_create_file_from_template
     configure_from_scratch do
       file FILE_PATH do
-        from_template
+        from template
         'One plus two is <%= 1 + 2 %>!'
       end
     end
@@ -101,7 +101,7 @@ class RCMFileTest < Minitest::Test
     configure_from_scratch do
       file(FILE_PATH) do
         line 'Whats up?'
-        is :absent
+        is absent
       end
     end
     assert_equal 'Hey there', File.read(FILE_PATH)
@@ -110,7 +110,7 @@ class RCMFileTest < Minitest::Test
     configure_from_scratch do
       file(FILE_PATH) do
         line 'Hey there'
-        is :absent
+        is absent
       end
     end
     assert_equal 'Whats up?', File.read(FILE_PATH)

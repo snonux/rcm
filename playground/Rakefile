@@ -8,13 +8,15 @@ task :wireguard do
     only_when { hostname is :earth }
 
     file '/tmp/test/wg/wg0.conf' do
-      create_parent_directory and from_template
+      manage directory
+      from template
 
       'the content is here and the result is <%= 1 + 2 %>'
     end
 
     file '/tmp/test/wg/wg1.conf' do
-      create_parent_directory and from_sourcefile
+      manage directory
+      from sourcefile
 
       './Rakefile'
     end
@@ -27,7 +29,7 @@ task :hosts do
     only_when { hostname is :earth }
 
     file '/etc/hosts.test' do
-      ensure_line '192.168.1.101 foo'
+      line '192.168.1.101 foo'
     end
   end
 end
@@ -36,7 +38,8 @@ desc 'foo'
 task :foo do
   configure do
     file '/tmp/foo.txt' do
-      ensure_line 'foo'
+      line ensure_line 'foo'
+      # TODO: Rename to requires
       depends_on file '/tmp/bar.txt'
     end
 
