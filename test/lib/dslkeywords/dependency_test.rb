@@ -34,7 +34,7 @@ class RCMDependencyTest < Minitest::Test
   end
 
   def test_depends_on_invalid_resource
-    assert_raises(RCM::ResourceDependencies::NoSuchResourceType) do
+    assert_raises(RCM::Keyword::KeywordError) do
       configure_from_scratch do
         notify { depends_on invalid('baz') }
       end

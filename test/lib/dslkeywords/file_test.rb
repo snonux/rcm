@@ -47,15 +47,15 @@ class RCMFileTest < Minitest::Test
     configure_from_scratch do
       file :create_file_empty_directory_test do
         path file_path
-        create_parent_directory
-        is :present
+        manage directory
         :text
       end
 
       file :delete_file_empty_directory_test do
         path file_path
+        is absent
+        manage directory
         depends_on file :create_file_empty_directory_test
-        is :clean
       end
     end
 
@@ -116,11 +116,11 @@ class RCMFileTest < Minitest::Test
     assert_equal 'Whats up?', File.read(FILE_PATH)
   end
 
-  def test_create_parent_directory
+  def test_manage_directory
     file_path = "#{DIR_PATH}/foo/bar/baz/foo.txt"
     configure_from_scratch do
       file file_path do
-        create_parent_directory
+        manage directory
         :content
       end
     end
@@ -137,13 +137,13 @@ class RCMFileTest < Minitest::Test
     configure_from_scratch do
       file :original do
         path file_path
-        create_parent_directory
+        manage directory
         original_content
       end
 
       file :new do
         path file_path
-        create_parent_directory
+        manage directory
         depends_on file(:original)
         :new_content
       end

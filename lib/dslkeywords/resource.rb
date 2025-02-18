@@ -14,10 +14,8 @@ module RCM
       end
     end
 
-    class NoSuchResourceType < StandardError; end
-
     def method_missing(method_name, *args)
-      raise NoSuchResourceType, "No such resource type: #{method_name}" unless @valid_resources.include?(method_name)
+      super(method_name, *args) unless @valid_resources.include?(method_name)
 
       args.map { |arg| "#{method_name}('#{arg}')" }
     end

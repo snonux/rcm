@@ -38,10 +38,18 @@ module RCM
       @content = text.instance_of?(Array) ? text.join("\n") : text
     end
 
-    def create_parent_directory = @create_parent = true
+    def manage(what)
+      what = what.to_sym
+      raise UnsupportedOperation, "Unsupported 'manage' operation #{what}" unless %i[directory].include?(what)
+
+      @manage_directory = true
+    end
+
+    def directory = :directory
+
     def from_sourcefile = @from_sourcefile = true
     def from_template = @from_template = true
-    def without_backup = @without_backup = true
+    def without_backup = @without_backup = true # TODO: Rename to 'without backup'
     def line(line) = @ensure_line = line
 
     def path(file_path = nil)
@@ -52,13 +60,17 @@ module RCM
 
     def is(what)
       @is = what.to_sym
-      raise UnsupportedOperation, "Unsupported operation #{@is}" unless %i[present absent clean].include?(@is)
+      raise UnsupportedOperation, "Unsupported 'is' operation #{@is}" unless %i[present absent].include?(@is)
     end
+
+    # To allow 'is present'
+    def present = :present
+    def absent = :absent
 
     def evaluate!
       return unless super
       return evaluate_ensure_line! unless @ensure_line.nil?
-      return evaluate_absent! if %i[absent clean].include?(@is)
+      return evaluate_absent! if %i[absent].include?(@is)
 
       write!(real_content)
     end
@@ -66,7 +78,7 @@ module RCM
     private
 
     def evaluate_ensure_line!
-      return evaluate_ensure_line_absent! if %i[absent clean].include?(@is)
+      return evaluate_ensure_line_absent! if %i[absent].include?(@is)
       return write!(@ensure_line) unless ::File.file?(@file_path)
       return if ::File.readlines(@file_path, chomp: true).include?(@ensure_line)
 
@@ -88,7 +100,7 @@ module RCM
         info("Deleting #{@file_path}")
         ::File.delete(@file_path)
       end
-      return unless @is == :clean
+      return unless @manage_directory
 
       parent_dir = ::File.dirname(@file_path)
       while Dir.empty?(parent_dir)
@@ -123,7 +135,7 @@ module RCM
 
     def create_parent_directory!
       dirname = ::File.dirname(@file_path)
-      return unless !::File.directory?(dirname) && @create_parent
+      return if ::File.directory?(dirname) || !@manage_directory
 
       info "Creating parent directory #{dirname}"
       FileUtils.mkdir_p(dirname)
