@@ -23,6 +23,8 @@ module RCM
     include Options
     include Log
 
+    class DuplicateResource < StandardError; end
+
     def initialize(reset)
       DSL.reset! if reset
       @id = "dsl(#{@@rcm_counter += 1})"
@@ -35,7 +37,8 @@ module RCM
     def evaluate! = @scheduled.each(&:evaluate!)
 
     def <<(obj)
-      fatal_exit "Object #{obj.id} already declared!" if @@objs.key?(obj.id)
+      raise DuplicateResource, "#{obj.id} already declared!" if @@objs.key?(obj.id)
+
       @scheduled << @@objs[obj.id] = obj
     end
   end
