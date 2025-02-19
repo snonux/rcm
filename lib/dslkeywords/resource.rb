@@ -50,6 +50,7 @@ module RCM
     def evaluate!
       return false if @evaluated
 
+      info 'Evaluating...'
       raise DependencyLoop, "Dependency loop detected for #{id}" if @loop_detection
 
       @loop_detection = true

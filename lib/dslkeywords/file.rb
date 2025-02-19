@@ -21,45 +21,33 @@ module RCM
     end
   end
 
-  # Managing files
-  class File < Resource
-    include FileBackup
+  # Base for File and Symlink
+  class BaseFile < Resource
     include Chained
-
-    class UnsupportedOperation < StandardError; end
 
     def initialize(file_path)
       super(file_path)
       @file_path = file_path
-      @is = :installed
+      @is = :present
     end
 
+    class UnsupportedOperation < StandardError; end
+
+    def is(what) = @is = validate(__method__, what.to_sym, :present, :absent)
+    def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
+    def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
+    def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
+
     def content(text = nil)
-      return @content if text.nil?
+      if text.nil?
+        text = @from == :sourcefile ? ::File.read(@content) : @content
+        return @from == :template ? ERB.new(text).result : text
+      end
 
       @content = text.instance_of?(Array) ? text.join("\n") : text
     end
 
-    def line(line) = @ensure_line = line
-    def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
-
-    def is(what) = @is = validate(__method__, what.to_sym, :present, :absent, :symlink)
-    def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
-    def without(what) = @without_backup = validate(__method__, what.to_sym, :backup) == :backup
-    def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
-
-    def evaluate!
-      return unless super
-      return evaluate_ensure_line! unless @ensure_line.nil?
-      return evaluate_absent! if @is == :absent
-
-      create_parent_directory! if @manage_directory
-      return evaluate_symlink! if @is == :symlink
-
-      write!(real_content)
-    end
-
-    private
+    protected
 
     # Validate whether we can use this up in this context or not
     def validate(method, what, *valids)
@@ -68,6 +56,49 @@ module RCM
       raise UnsupportedOperation,
             "Unsupported '#{method}' operation #{what} (#{what.class})"
     end
+
+    def create_parent_directory!
+      dirname = ::File.dirname(@file_path)
+      return if ::File.directory?(dirname)
+
+      info "Creating parent directory #{dirname}"
+      FileUtils.mkdir_p(dirname)
+    end
+
+    def evaluate_absent!
+      if ::File.exist?(@file_path)
+        info("Deleting #{@file_path}")
+        ::File.delete(@file_path)
+      end
+      return unless @manage_directory
+
+      parent_dir = ::File.dirname(@file_path)
+      while Dir.empty?(parent_dir)
+        info("Deleting empty parent directory #{parent_dir}")
+        Dir.rmdir(parent_dir)
+        parent_dir = ::File.dirname(parent_dir)
+      end
+    end
+  end
+
+  # Managing files
+  class File < BaseFile
+    include FileBackup
+
+    def line(line) = @ensure_line = line
+    def without(what) = @without_backup = validate(__method__, what.to_sym, :backup) == :backup
+
+    def evaluate!
+      return unless super
+      return evaluate_ensure_line! unless @ensure_line.nil?
+      return evaluate_absent! if @is == :absent
+
+      create_parent_directory! if @manage_directory
+
+      write!(content)
+    end
+
+    private
 
     def evaluate_ensure_line!
       return evaluate_ensure_line_absent! if %i[absent].include?(@is)
@@ -87,27 +118,7 @@ module RCM
              end.join("\n"))
     end
 
-    def evaluate_absent!
-      if ::File.exist?(@file_path)
-        info("Deleting #{@file_path}")
-        ::File.delete(@file_path)
-      end
-      return unless @manage_directory
-
-      parent_dir = ::File.dirname(@file_path)
-      while Dir.empty?(parent_dir)
-        info("Deleting empty parent directory #{parent_dir}")
-        Dir.rmdir(parent_dir)
-        parent_dir = ::File.dirname(parent_dir)
-      end
-    end
-
-    def evaluate_symlink! = FileUtils.ln_sf(real_content, @file_path)
-
     def write!(text)
-      info "Managing file #{@file_path}"
-      debug text if option :debug
-
       tmp_path = "#{@file_path}.rcmtmp"
       ::File.write(tmp_path, text)
 
@@ -124,18 +135,16 @@ module RCM
 
       ::File.rename(tmp_path, @file_path)
     end
+  end
 
-    def create_parent_directory!
-      dirname = ::File.dirname(@file_path)
-      return if ::File.directory?(dirname)
+  # Manage symlinks
+  class Symlink < BaseFile
+    def evaluate!
+      return unless super
+      return evaluate_absent! if @is == :absent
 
-      info "Creating parent directory #{dirname}"
-      FileUtils.mkdir_p(dirname)
-    end
-
-    def real_content
-      text = @from == :sourcefile ? ::File.read(@content) : @content
-      @from == :template ? ERB.new(text).result : text
+      create_parent_directory! if @manage_directory
+      FileUtils.ln_sf(content, @file_path)
     end
   end
 
@@ -150,12 +159,13 @@ module RCM
       f
     end
 
-    def symlink(...)
+    def symlink(file_path, &block)
       return unless @conds_met
 
-      f = file(...)
-      f.is(:symlink)
-      f
+      s = Symlink.new(file_path)
+      s.content(s.instance_eval(&block))
+      self << s
+      s
     end
   end
 end
