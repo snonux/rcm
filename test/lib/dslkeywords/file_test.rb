@@ -53,17 +53,17 @@ class RCMFileTest < Minitest::Test
     file_path = "#{DIR_PATH}/test_file_absent_with_empty_directory/bar/baz/foo.txt"
 
     configure_from_scratch do
-      file create File empty directory do
+      file create empty directory do
         path file_path
         manage directory
         the text
       end
 
-      file delete File empty directory do
+      file delete empty directory do
         path file_path
         is absent
         manage directory and without backup
-        requires file create File empty directory
+        requires file create empty directory
       end
     end
 

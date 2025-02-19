@@ -21,8 +21,8 @@ module RCM
     end
   end
 
-  # Base for File and Symlink
-  class BaseFile < Resource
+  # Base for BaseFile and Directory
+  class BasicFile < Resource
     include Chained
 
     def initialize(file_path)
@@ -31,11 +31,7 @@ module RCM
       @is = :present
     end
 
-    class UnsupportedOperation < StandardError; end
-
     def is(what) = @is = validate(__method__, what.to_sym, :present, :absent)
-    def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
-    def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
     def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
 
     def content(text = nil)
@@ -65,17 +61,7 @@ module RCM
       end
     end
 
-    def evaluate_absent!
-      if ::File.exist?(@file_path)
-        dry? "Deleting #{@file_path}" do
-          backup!(@file_path)
-          ::File.delete(@file_path) if ::File.file?(@file_path)
-        end
-      end
-      cleanup_directory! if @manage_directory
-    end
-
-    def cleanup_directory!
+    def cleanup_parent_directory!
       parent_dir = ::File.dirname(@file_path)
       while Dir.empty?(parent_dir)
         dry? "Deleting empty parent directory #{parent_dir}" do
@@ -83,6 +69,26 @@ module RCM
         end
         parent_dir = ::File.dirname(parent_dir)
       end
+    end
+  end
+
+  # Base for File and Symlink
+  class BaseFile < BasicFile
+    class UnsupportedOperation < StandardError; end
+
+    def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
+    def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
+
+    protected
+
+    def evaluate_absent!
+      if ::File.exist?(@file_path)
+        dry? "Deleting #{@file_path}" do
+          backup!(@file_path)
+          ::File.delete(@file_path) if ::File.file?(@file_path)
+        end
+      end
+      cleanup_parent_directory! if @manage_directory
     end
   end
 
@@ -163,9 +169,18 @@ module RCM
     end
   end
 
+  class Directory < BaseFile
+    def evaluate!
+      return unless super
+
+      raise 'Not yet implemented'
+    end
+  end
+
   # Add file keyword to the DSL
   class DSL
-    def file(file_path, &block)
+    def file(file_path = nil, &block)
+      return :file if file_path.nil?
       return unless @conds_met
 
       f = File.new(file_path)
@@ -174,13 +189,24 @@ module RCM
       f
     end
 
-    def symlink(file_path, &block)
+    def symlink(file_path = nil, &block)
+      return :symlink if file_path.nil?
       return unless @conds_met
 
       s = Symlink.new(file_path)
       s.content(s.instance_eval(&block))
       self << s
       s
+    end
+
+    def directory(file_path = nil, &block)
+      return :directory if file_path.nil?
+      return unless @conds_met
+
+      d = Directory.new(file_path)
+      d.content(d.instance_eval(&block))
+      self << d
+      d
     end
   end
 end
