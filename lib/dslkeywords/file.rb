@@ -43,21 +43,10 @@ module RCM
     def line(line) = @ensure_line = line
     def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
 
-    def is(what) = @is = validate_op(__method__, what, present, absent)
-    def manage(what) = @manage_directory = validate_op(__method__, what, directory) == directory
-    def without(what) = @without_backup = validate_op(__method__, what, backup) == backup
-    def from(what) = @from = validate_op(__method__, what, sourcefile, template)
-
-    # TODO: Delete this, as should not be required anymore due to Chained module
-    def method_missing(method_name, *args)
-      if %i[present absent directory backup sourcefile template].include?(method_name)
-        method_name
-      else
-        super
-      end
-    end
-
-    def respond_to_missing? = true
+    def is(what) = @is = validate(__method__, what, :present, :absent)
+    def manage(what) = @manage_directory = validate(__method__, what, :directory) == :directory
+    def without(what) = @without_backup = validate(__method__, what, :backup) == :backup
+    def from(what) = @from = validate(__method__, what, :sourcefile, :template)
 
     def evaluate!
       return unless super
@@ -69,9 +58,13 @@ module RCM
 
     private
 
-    def validate_op(matter, what, *valids)
+    # Validate whether we can use this up in this context or not
+    def validate(matter, what, *valids)
       what = what.to_sym
-      raise UnsupportedOperation, "Unsupported '#{matter}' operation #{what}" unless valids.include?(what)
+      unless valids.include?(what)
+        raise UnsupportedOperation,
+              "Unsupported '#{matter}' operation #{what} (#{what.class})"
+      end
 
       what
     end
@@ -141,8 +134,8 @@ module RCM
     end
 
     def real_content
-      text = @from == sourcefile ? ::File.read(@content) : @content
-      @from == template ? ERB.new(text).result : text
+      text = @from == :sourcefile ? ::File.read(@content) : @content
+      @from == :template ? ERB.new(text).result : text
     end
   end
 
