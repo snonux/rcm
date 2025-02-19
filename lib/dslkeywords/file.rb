@@ -43,7 +43,6 @@ module RCM
         text = @from == :sourcefile ? ::File.read(@content) : @content
         return @from == :template ? ERB.new(text).result : text
       end
-
       @content = text.instance_of?(Array) ? text.join("\n") : text
     end
 
