@@ -8,7 +8,7 @@ require_relative '../chained'
 module RCM
   # Backup the file on change
   module FileBackup
-    def backup!(file_path, checksum)
+    def backup!(file_path, checksum = Digest::SHA256.file(file_path).hexdigest)
       return if @without_backup
 
       backup_dir = "#{::File.dirname(file_path)}/.rcm"
@@ -68,10 +68,13 @@ module RCM
     def evaluate_absent!
       if ::File.exist?(@file_path)
         info("Deleting #{@file_path}")
-        ::File.delete(@file_path)
+        backup!(@file_path)
+        ::File.delete(@file_path) if ::File.file?(@file_path)
       end
-      return unless @manage_directory
+      cleanup_directory! if @manage_directory
+    end
 
+    def cleanup_directory!
       parent_dir = ::File.dirname(@file_path)
       while Dir.empty?(parent_dir)
         info("Deleting empty parent directory #{parent_dir}")

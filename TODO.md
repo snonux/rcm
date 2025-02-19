@@ -1,5 +1,8 @@
 # TODO
 
+* Implement dry run mode, e.g. use if option :dry ...
+  * Go through all keywords and evaluate methods!
+  * Print out what it would do but don't do it (helper method?)
 * Backup file when it gets deleted
 * Recursively install a directory
 * Support for file deletion

@@ -62,7 +62,7 @@ class RCMFileTest < Minitest::Test
       file delete File empty directory do
         path file_path
         is absent
-        manage directory
+        manage directory and without backup
         requires file create File empty directory
       end
     end
