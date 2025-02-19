@@ -160,4 +160,55 @@ class RCMFileTest < Minitest::Test
     assert File.file?(backup_path)
     assert_equal original_content, File.read(backup_path)
   end
+
+  def test_create_symlink
+    symlink1_path = "#{DIR_PATH}/the_symlink1"
+    symlink2_path = "#{DIR_PATH}/the_symlink2"
+    symlink_target = "#{DIR_PATH}/the_symlink_target"
+
+    configure_from_scratch do
+      file symlink1_path do
+        is symlink
+        manage directory
+        symlink_target
+      end
+
+      symlink symlink2_path do
+        manage directory
+        symlink_target
+      end
+    end
+
+    assert File.symlink?(symlink1_path)
+    assert_equal symlink_target, File.readlink(symlink1_path)
+
+    assert File.symlink?(symlink2_path)
+    assert_equal symlink_target, File.readlink(symlink2_path)
+  end
+
+  def test_change_symlink
+    symlink_path = "#{DIR_PATH}/the_symlink"
+    symlink_target1 = "#{DIR_PATH}/the_symlink_target1"
+    symlink_target2 = "#{DIR_PATH}/the_symlink_target2"
+
+    configure_from_scratch do
+      symlink original do
+        path symlink_path
+        manage directory
+        symlink_target1
+      end
+
+      symlink changed do
+        path symlink_path
+        # TODO: Make it so that 'requires symlink original' works here, this
+        # requires to refactor the file class into multiple modules and two
+        # classes file and symlink
+        requires file original
+        symlink_target2
+      end
+    end
+
+    assert File.symlink?(symlink_path)
+    assert_equal symlink_target2, File.readlink(symlink_path)
+  end
 end

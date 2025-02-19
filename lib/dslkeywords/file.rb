@@ -51,7 +51,10 @@ module RCM
     def evaluate!
       return unless super
       return evaluate_ensure_line! unless @ensure_line.nil?
-      return evaluate_absent! if %i[absent].include?(@is)
+      return evaluate_absent! if @is == :absent
+
+      create_parent_directory! if @manage_directory
+      return evaluate_symlink! if @is == :symlink
 
       write!(real_content)
     end
@@ -99,10 +102,10 @@ module RCM
       end
     end
 
+    def evaluate_symlink! = FileUtils.ln_sf(real_content, @file_path)
+
     def write!(text)
       info "Managing file #{@file_path}"
-
-      create_parent_directory!
       debug text if option :debug
 
       tmp_path = "#{@file_path}.rcmtmp"
@@ -124,7 +127,7 @@ module RCM
 
     def create_parent_directory!
       dirname = ::File.dirname(@file_path)
-      return if ::File.directory?(dirname) || !@manage_directory
+      return if ::File.directory?(dirname)
 
       info "Creating parent directory #{dirname}"
       FileUtils.mkdir_p(dirname)
@@ -144,6 +147,14 @@ module RCM
       f = File.new(file_path)
       f.content(f.instance_eval(&block))
       self << f
+      f
+    end
+
+    def symlink(...)
+      return unless @conds_met
+
+      f = file(...)
+      f.is(:symlink)
       f
     end
   end

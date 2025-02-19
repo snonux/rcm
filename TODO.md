@@ -1,5 +1,6 @@
 # TODO
 
+* Backup file when it gets deleted
 * Recursively install a directory
 * Support for file deletion
 * Support for file modes (owner, chmod)
