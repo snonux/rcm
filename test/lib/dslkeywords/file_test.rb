@@ -14,13 +14,21 @@ class RCMFileTest < Minitest::Test
 
   def test_create_file_from_string
     text = 'Hello World!'
-    configure_from_scratch { file(FILE_PATH) { text } }
+    configure_from_scratch do
+      file FILE_PATH do
+        text
+      end
+    end
     assert_equal text, File.read(FILE_PATH)
   end
 
   def test_create_file_from_array
     arr = %w[Hello World and Hello Universe]
-    configure_from_scratch { file(FILE_PATH) { arr } }
+    configure_from_scratch do
+      file FILE_PATH do
+        arr
+      end
+    end
     assert_equal arr.join("\n"), File.read(FILE_PATH)
   end
 

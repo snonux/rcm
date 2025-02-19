@@ -42,7 +42,9 @@ class RCMRequiresTest < Minitest::Test
   def test_requires_non_existant_dependency
     assert_raises(RCM::Resource::NoSuchResourceObject) do
       configure_from_scratch do
-        notify { requires notify nonexistant }
+        notify do
+          requires notify nonexistant
+        end
       end
     end
   end
@@ -50,7 +52,9 @@ class RCMRequiresTest < Minitest::Test
   def test_dependency_loop
     assert_raises(RCM::DependencyEvaluator::DependencyLoop) do
       configure_from_scratch do
-        notify(looper) { requires notify looper }
+        notify looper do
+          requires notify looper
+        end
       end
     end
   end
@@ -58,8 +62,12 @@ class RCMRequiresTest < Minitest::Test
   def test_dependency_loop_indirect
     assert_raises(RCM::DependencyEvaluator::DependencyLoop) do
       configure_from_scratch do
-        notify(looper) { requires notify pooler }
-        notify(pooler) { requires notify looper }
+        notify looper do
+          requires notify pooler
+        end
+        notify pooler do
+          requires notify looper
+        end
       end
     end
   end
