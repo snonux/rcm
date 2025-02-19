@@ -61,15 +61,17 @@ module RCM
       dirname = ::File.dirname(@file_path)
       return if ::File.directory?(dirname)
 
-      info "Creating parent directory #{dirname}"
-      FileUtils.mkdir_p(dirname)
+      dry? "Creating parent directory #{dirname}" do
+        FileUtils.mkdir_p(dirname)
+      end
     end
 
     def evaluate_absent!
       if ::File.exist?(@file_path)
-        info("Deleting #{@file_path}")
-        backup!(@file_path)
-        ::File.delete(@file_path) if ::File.file?(@file_path)
+        dry? "Deleting #{@file_path}" do
+          backup!(@file_path)
+          ::File.delete(@file_path) if ::File.file?(@file_path)
+        end
       end
       cleanup_directory! if @manage_directory
     end
@@ -77,8 +79,9 @@ module RCM
     def cleanup_directory!
       parent_dir = ::File.dirname(@file_path)
       while Dir.empty?(parent_dir)
-        info("Deleting empty parent directory #{parent_dir}")
-        Dir.rmdir(parent_dir)
+        dry? "Deleting empty parent directory #{parent_dir}" do
+          Dir.rmdir(parent_dir)
+        end
         parent_dir = ::File.dirname(parent_dir)
       end
     end
@@ -93,6 +96,7 @@ module RCM
 
     def evaluate!
       return unless super
+
       return evaluate_ensure_line! unless @ensure_line.nil?
       return evaluate_absent! if @is == :absent
 
@@ -108,22 +112,28 @@ module RCM
       return write!(@ensure_line) unless ::File.file?(@file_path)
       return if ::File.readlines(@file_path, chomp: true).include?(@ensure_line)
 
-      ::File.open(@file_path, 'a') do |fd|
-        fd.puts(@ensure_line)
+      dry? "Appending line #{@ensure_line} to #{@file_path}" do
+        ::File.open(@file_path, 'a') do |fd|
+          fd.puts(@ensure_line)
+        end
       end
     end
 
     def evaluate_ensure_line_absent!
       return unless ::File.file?(@file_path)
 
-      write!(::File.readlines(@file_path, chomp: true).reject do |line|
-               line == @ensure_line
-             end.join("\n"))
+      dry? "Removing line #{@ensure_line} from #{@file_path}" do
+        write!(::File.readlines(@file_path, chomp: true).reject do |line|
+                 line == @ensure_line
+               end.join("\n"))
+      end
     end
 
     def write!(text)
       tmp_path = "#{@file_path}.rcmtmp"
-      ::File.write(tmp_path, text)
+      dry? "Writing file #{@file_path}" do
+        ::File.write(tmp_path, text)
+      end
 
       if ::File.file?(@file_path)
         checksum = Digest::SHA256.file(@file_path).hexdigest
@@ -133,10 +143,11 @@ module RCM
           ::File.delete(tmp_path) # File has not changed, not doing anything
           return
         end
-        backup!(@file_path, checksum) # File changed, backup!
+        # File changed, backup!
+        backup!(@file_path, checksum) unless option :dry
       end
 
-      ::File.rename(tmp_path, @file_path)
+      ::File.rename(tmp_path, @file_path) unless option :dry
     end
   end
 
@@ -147,7 +158,9 @@ module RCM
       return evaluate_absent! if @is == :absent
 
       create_parent_directory! if @manage_directory
-      FileUtils.ln_sf(content, @file_path)
+      dry? "Creating symlink #{@file_path}" do
+        FileUtils.ln_sf(content, @file_path)
+      end
     end
   end
 

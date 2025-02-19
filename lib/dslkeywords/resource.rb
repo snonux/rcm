@@ -38,6 +38,16 @@ module RCM
     end
 
     def requires?(*others) = others.flatten.none? { |other| !@requires&.include?(other) }
+
+    # Only run the block when not in dry mode
+    def dry?(message)
+      if option :dry
+        info("#{message} - dry run!")
+        return
+      end
+      info(message)
+      yield
+    end
   end
 
   # To resolve dependencies
