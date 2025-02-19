@@ -43,10 +43,10 @@ module RCM
     def line(line) = @ensure_line = line
     def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
 
-    def is(what) = @is = validate(__method__, what, :present, :absent)
-    def manage(what) = @manage_directory = validate(__method__, what, :directory) == :directory
-    def without(what) = @without_backup = validate(__method__, what, :backup) == :backup
-    def from(what) = @from = validate(__method__, what, :sourcefile, :template)
+    def is(what) = @is = validate(__method__, what.to_sym, :present, :absent, :symlink)
+    def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
+    def without(what) = @without_backup = validate(__method__, what.to_sym, :backup) == :backup
+    def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
 
     def evaluate!
       return unless super
@@ -59,14 +59,11 @@ module RCM
     private
 
     # Validate whether we can use this up in this context or not
-    def validate(matter, what, *valids)
-      what = what.to_sym
-      unless valids.include?(what)
-        raise UnsupportedOperation,
-              "Unsupported '#{matter}' operation #{what} (#{what.class})"
-      end
+    def validate(method, what, *valids)
+      return what if valids.include?(what)
 
-      what
+      raise UnsupportedOperation,
+            "Unsupported '#{method}' operation #{what} (#{what.class})"
     end
 
     def evaluate_ensure_line!
