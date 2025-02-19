@@ -1,9 +1,7 @@
 # TODO
 
 * Recursively install a directory
-* Support for file deletion
 * Support for file modes (owner, chmod)
-* Support for symlinks
 * User and group management
   * Fedora
   * FreeBSD
