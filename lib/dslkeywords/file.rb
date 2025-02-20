@@ -8,22 +8,45 @@ require_relative '../chained'
 module RCM
   # Backup the file on change
   module FileBackup
-    def backup!(file_path, checksum = Digest::SHA256.file(file_path).hexdigest)
+    def backup!(file_path, checksum = nil)
       return if @without_backup
 
-      backup_dir = "#{::File.dirname(file_path)}/.rcm"
-      Dir.mkdir(backup_dir) unless ::File.directory?(backup_dir)
-      backup_path = "#{backup_dir}/#{::File.basename(file_path)}.#{checksum}"
+      suffix = if ::File.file?(file_path)
+                 checksum.nil? ? Digest::SHA256.file(file_path).hexdigest : checksum
+               else
+                 Time.now.strftime('%s-%L')
+               end
+      make_backup!(file_path, suffix)
+    end
+
+    private
+
+    def make_backup!(file_path, suffix)
+      backup_dir = create_backup_directory!(file_path)
+      backup_path = "#{backup_dir}/#{::File.basename(file_path)}.#{suffix}"
       return if ::File.exist?(backup_path)
 
-      info("Backing up #{file_path} -> #{backup_path}")
-      ::File.rename(file_path, backup_path)
+      dry? "Backing up #{file_path} -> #{backup_path}" do
+        ::File.rename(file_path, backup_path)
+      end
+    end
+
+    def create_backup_directory!(file_path)
+      backup_dir = "#{::File.dirname(file_path)}/.rcmbackup"
+      return backup_dir if ::File.directory?(backup_dir)
+
+      dry? "Creating backup directory #{backup_dir}" do
+        Dir.mkdir(backup_dir)
+      end
+
+      backup_dir
     end
   end
 
   # Base for BaseFile and Directory
   class BasicFile < Resource
     include Chained
+    include FileBackup
 
     def initialize(file_path)
       super(file_path)
@@ -32,6 +55,7 @@ module RCM
     end
 
     def is(what) = @is = validate(__method__, what.to_sym, :present, :absent)
+    def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
     def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
 
     def content(text = nil)
@@ -76,7 +100,6 @@ module RCM
   class BaseFile < BasicFile
     class UnsupportedOperation < StandardError; end
 
-    def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
     def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
 
     protected
@@ -94,8 +117,6 @@ module RCM
 
   # Managing files
   class File < BaseFile
-    include FileBackup
-
     def line(line) = @ensure_line = line
     def without(what) = @without_backup = validate(__method__, what.to_sym, :backup) == :backup
 
@@ -136,9 +157,7 @@ module RCM
 
     def write!(text)
       tmp_path = "#{@file_path}.rcmtmp"
-      dry? "Writing file #{@file_path}" do
-        ::File.write(tmp_path, text)
-      end
+      ::File.write(tmp_path, text)
 
       if ::File.file?(@file_path)
         checksum = Digest::SHA256.file(@file_path).hexdigest
@@ -148,11 +167,13 @@ module RCM
           ::File.delete(tmp_path) # File has not changed, not doing anything
           return
         end
-        # File changed, backup!
-        backup!(@file_path, checksum) unless option :dry
+        backup!(@file_path, checksum) # File changed, backup!
       end
 
-      ::File.rename(tmp_path, @file_path) unless option :dry
+      dry? "Writing #{@file_path}" do
+        ::File.rename(tmp_path, @file_path)
+      end
+      ::File.delete(tmp_path) if ::File.file?(tmp_path)
     end
   end
 
@@ -173,12 +194,33 @@ module RCM
     def evaluate!
       return unless super
 
-      raise 'Not yet implemented'
+      evaluate_present! if @is == :present
+      evaluate_absent! if @is == :absent
+    end
+
+    def evaluate_present!
+      return if ::File.directory?(@file_path)
+
+      create_parent_directory! if @manage_directory
+
+      dry? "Creating directory #{@file_path}" do
+        Dir.mkdir(@file_path)
+      end
+    end
+
+    def evaluate_absent!
+      return unless ::File.directory?(@file_path)
+
+      backup!(@file_path)
+      dry? "Deleting directory #{@file_path}" do
+        Dir.delete(@file_path) if ::File.directory?(@file_path)
+        cleanup_parent_directory! if @manage_directory
+      end
     end
   end
 
-  # Add file keyword to the DSL
   class DSL
+    # Add file keyword to the DSL
     def file(file_path = nil, &block)
       return :file if file_path.nil?
       return unless @conds_met

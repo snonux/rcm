@@ -140,7 +140,7 @@ class RCMFileTest < Minitest::Test
   def test_backup
     file_path = "#{DIR_PATH}/foo/backup-me.txt"
     original_content = 'original_content'
-    backup_path = "#{DIR_PATH}/foo/.rcm/backup-me.txt.d4c3af73588ce06c32ed04d1b79801286109ea265712a2bd3fdc3ed01c82bb86"
+    backup_path = "#{DIR_PATH}/foo/.rcmbackup/backup-me.txt.d4c3af73588ce06c32ed04d1b79801286109ea265712a2bd3fdc3ed01c82bb86"
 
     configure_from_scratch do
       file original do
