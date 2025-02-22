@@ -20,3 +20,4 @@
   * FreeBSD
   * OpenBSD
   * Homebrew (macOS)
+* Make a gem out of rcm
