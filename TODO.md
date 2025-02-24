@@ -21,3 +21,4 @@
   * OpenBSD
   * Homebrew (macOS)
 * Make a gem out of rcm
+* Use rakelib and split up rakefiles

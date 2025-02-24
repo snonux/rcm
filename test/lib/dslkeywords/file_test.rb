@@ -159,5 +159,7 @@ class RCMFileTest < Minitest::Test
 
     assert File.file?(backup_path)
     assert_equal original_content, File.read(backup_path)
+    assert File.file?(file_path)
+    assert_equal :new_content.to_s, File.read(file_path)
   end
 end
