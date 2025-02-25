@@ -1,6 +1,5 @@
 # TODO
 
-* Purge a directory
 * Recursively install a directory
 * Support for file modes (owner, chmod)
 * User and group management

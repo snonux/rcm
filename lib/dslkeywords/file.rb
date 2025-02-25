@@ -54,9 +54,10 @@ module RCM
       @is = :present
     end
 
-    def is(what) = @is = validate(__method__, what.to_sym, :present, :absent)
+    def is(what) = @is = validate(__method__, what.to_sym, :present, :absent, :purged)
     def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
     def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
+    def without(what) = @without_backup = validate(__method__, what.to_sym, :backup) == :backup
 
     def content(text = nil)
       if text.nil?
@@ -118,13 +119,12 @@ module RCM
   # Managing files
   class File < BaseFile
     def line(line) = @ensure_line = line
-    def without(what) = @without_backup = validate(__method__, what.to_sym, :backup) == :backup
 
     def evaluate!
       return unless super
 
       return evaluate_ensure_line! unless @ensure_line.nil?
-      return evaluate_absent! if @is == :absent
+      return evaluate_absent! if %i[absent purged].include?(@is)
 
       create_parent_directory! if @manage_directory
 
@@ -181,7 +181,7 @@ module RCM
   class Symlink < BaseFile
     def evaluate!
       return unless super
-      return evaluate_absent! if @is == :absent
+      return evaluate_absent! if %i[absent purged].include?(@is)
 
       create_parent_directory! if @manage_directory
       dry? "Creating symlink #{@file_path}" do
@@ -194,8 +194,12 @@ module RCM
     def evaluate!
       return unless super
 
-      evaluate_present! if @is == :present
-      evaluate_absent! if @is == :absent
+      case @is
+      when :present
+        evaluate_present!
+      when :absent, :purged
+        evaluate_absent!
+      end
     end
 
     def evaluate_present!
@@ -212,10 +216,14 @@ module RCM
       return unless ::File.directory?(@file_path)
 
       backup!(@file_path)
-      dry? "Deleting directory #{@file_path}" do
-        Dir.delete(@file_path) if ::File.directory?(@file_path)
-        cleanup_parent_directory! if @manage_directory
+      what = @is == :purged ? 'Purging' : 'Deleting'
+
+      dry? "#{what} directory #{@file_path}" do
+        if ::File.directory?(@file_path)
+          @is == :purged ? FileUtils.rm_r(@file_path) : Dir.delete(@file_path)
+        end
       end
+      cleanup_parent_directory! if @manage_directory
     end
   end
 
