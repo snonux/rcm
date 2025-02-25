@@ -36,16 +36,15 @@ class RCMDirectoryTest < Minitest::Test
 
   def test_purge_directory
     configure_from_scratch do
-      file create do
+      touch create do
         path "#{DIR_PATH}/subdir/a_file.txt"
         manage directory
-        'some content'
       end
       directory purge do
         path DIR_PATH
-        without backup
+        requires touch create
         is purged
-        requires file create
+        without backup
       end
     end
     refute File.directory?(DIR_PATH)

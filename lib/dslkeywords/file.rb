@@ -190,6 +190,23 @@ module RCM
     end
   end
 
+  # Emtpy file
+  class Touch < BaseFile
+    def is(what) = @is = validate(__method__, what.to_sym, :present, :absent, :purged, :updated)
+
+    def evaluate!
+      return unless super
+      return evaluate_absent! if %i[absent purged].include?(@is)
+
+      create_parent_directory! if @manage_directory
+      dry? "Touching #{@file_path}" do
+        return if @is != :updated && ::File.file?(@file_path)
+
+        FileUtils.touch(@file_path)
+      end
+    end
+  end
+
   class Directory < BaseFile
     def evaluate!
       return unless super
@@ -247,6 +264,16 @@ module RCM
       s.content(s.instance_eval(&block))
       self << s
       s
+    end
+
+    def touch(file_path = nil, &block)
+      return :touch if file_path.nil?
+      return unless @conds_met
+
+      t = Touch.new(file_path)
+      t.instance_eval(&block) if block
+      self << t
+      t
     end
 
     def directory(file_path = nil, &block)
