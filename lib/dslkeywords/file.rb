@@ -58,6 +58,15 @@ module RCM
     def manage(what) = @manage_directory = validate(__method__, what.to_sym, :directory) == :directory
     def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
     def without(what) = @without_backup = validate(__method__, what.to_sym, :backup) == :backup
+    def mode(what) = @mode = what
+
+    def evaluate!
+      unless super
+        @mode = nil
+        return false
+      end
+      true
+    end
 
     def content(text = nil)
       if text.nil?
@@ -68,6 +77,14 @@ module RCM
     end
 
     protected
+
+    def mode!(file_path = path)
+      return if !::File.exist?(file_path) || @mode.nil?
+
+      dry? "Setting mode of #{file_path} to #{@mode}" do
+        FileUtils.chmod(@mode, file_path)
+      end
+    end
 
     # Validate whether we can use this up in this context or not
     def validate(method, what, *valids)
@@ -129,6 +146,8 @@ module RCM
       create_parent_directory! if @manage_directory
 
       write!(content)
+    ensure
+      mode!
     end
 
     private
@@ -187,6 +206,8 @@ module RCM
       dry? "Creating symlink #{@file_path}" do
         FileUtils.ln_sf(content, @file_path)
       end
+    ensure
+      mode!
     end
   end
 
@@ -204,6 +225,8 @@ module RCM
 
         FileUtils.touch(@file_path)
       end
+    ensure
+      mode!
     end
   end
 
@@ -217,6 +240,8 @@ module RCM
       when :absent, :purged
         evaluate_absent!
       end
+    ensure
+      mode!
     end
 
     def evaluate_present!

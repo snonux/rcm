@@ -1,7 +1,8 @@
 # TODO
 
-* Recursively install a directory
 * Support for file modes (owner, chmod)
+  Test the mode
+* Recursively install a directory (rsync?)
 * User and group management
   * Fedora
   * FreeBSD

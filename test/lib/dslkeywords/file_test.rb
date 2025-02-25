@@ -22,6 +22,15 @@ class RCMFileTest < Minitest::Test
     assert_equal text, File.read(FILE_PATH)
   end
 
+  # def test_file_mode
+  #   configure_from_scratch do
+  #     file FILE_PATH do
+  #       mode 661
+  #       'content'
+  #     end
+  #   end
+  # end
+
   def test_create_file_from_array
     arr = %w[Hello World and Hello Universe]
     configure_from_scratch do
