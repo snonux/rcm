@@ -21,7 +21,7 @@ module RCM
     def evaluate!
       return unless super
 
-      dry? "Notifying #{@message}" do
+      do? "Notifying #{@message}" do
         puts "#{id} => #{@message}"
       end
     end

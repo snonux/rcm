@@ -26,7 +26,7 @@ module RCM
       backup_path = "#{backup_dir}/#{::File.basename(file_path)}.#{suffix}"
       return if ::File.exist?(backup_path)
 
-      dry? "Backing up #{file_path} -> #{backup_path}" do
+      do? "Backing up #{file_path} -> #{backup_path}" do
         ::File.rename(file_path, backup_path)
       end
     end
@@ -35,7 +35,7 @@ module RCM
       backup_dir = "#{::File.dirname(file_path)}/.rcmbackup"
       return backup_dir if ::File.directory?(backup_dir)
 
-      dry? "Creating backup directory #{backup_dir}" do
+      do? "Creating backup directory #{backup_dir}" do
         Dir.mkdir(backup_dir)
       end
 
@@ -100,7 +100,7 @@ module RCM
       dirname = ::File.dirname(@file_path)
       return if ::File.directory?(dirname)
 
-      dry? "Creating parent directory #{dirname}" do
+      do? "Creating parent directory #{dirname}" do
         FileUtils.mkdir_p(dirname)
       end
     end
@@ -108,7 +108,7 @@ module RCM
     def cleanup_parent_directory!
       parent_dir = ::File.dirname(@file_path)
       while Dir.empty?(parent_dir)
-        dry? "Deleting empty parent directory #{parent_dir}" do
+        do? "Deleting empty parent directory #{parent_dir}" do
           Dir.rmdir(parent_dir)
         end
         parent_dir = ::File.dirname(parent_dir)
@@ -123,7 +123,7 @@ module RCM
       current_mode = stat.mode.to_s(8).split('')[-4..-1].join.to_i(8)
       return unless current_mode != @mode
 
-      dry? "Changing mode of #{file_path} to #{@mode}" do
+      do? "Changing mode of #{file_path} to #{@mode}" do
         FileUtils.chmod(@mode, file_path)
       end
     end
@@ -136,7 +136,7 @@ module RCM
 
       return if (@owner.nil? || @owner == current_owner) && (@group.nil? || @group == current_group)
 
-      dry? "Changing owner of #{file_path} to #{@owner || ''}:#{@group || ''}" do
+      do? "Changing owner of #{file_path} to #{@owner || ''}:#{@group || ''}" do
         FileUtils.chown(@owner, @group, file_path)
       end
     end
@@ -152,7 +152,7 @@ module RCM
 
     def evaluate_absent!
       if ::File.exist?(@file_path)
-        dry? "Deleting #{@file_path}" do
+        do? "Deleting #{@file_path}" do
           backup!(@file_path)
           ::File.delete(@file_path) if ::File.file?(@file_path)
         end
@@ -185,7 +185,7 @@ module RCM
       return write!(@ensure_line) unless ::File.file?(@file_path)
       return if ::File.readlines(@file_path, chomp: true).include?(@ensure_line)
 
-      dry? "Appending line #{@ensure_line} to #{@file_path}" do
+      do? "Appending line #{@ensure_line} to #{@file_path}" do
         ::File.open(@file_path, 'a') do |fd|
           fd.puts(@ensure_line)
         end
@@ -195,7 +195,7 @@ module RCM
     def evaluate_ensure_line_absent!
       return unless ::File.file?(@file_path)
 
-      dry? "Removing line #{@ensure_line} from #{@file_path}" do
+      do? "Removing line #{@ensure_line} from #{@file_path}" do
         write!(::File.readlines(@file_path, chomp: true).reject do |line|
                  line == @ensure_line
                end.join("\n"))
@@ -217,7 +217,7 @@ module RCM
         backup!(@file_path, checksum) # File changed, backup!
       end
 
-      dry? "Writing #{@file_path}" do
+      do? "Writing #{@file_path}" do
         ::File.rename(tmp_path, @file_path)
       end
       ::File.delete(tmp_path) if ::File.file?(tmp_path)
@@ -231,7 +231,7 @@ module RCM
       return evaluate_absent! if %i[absent purged].include?(@is)
 
       create_parent_directory! if @manage_directory
-      dry? "Creating symlink #{@file_path}" do
+      do? "Creating symlink #{@file_path}" do
         FileUtils.ln_sf(content, @file_path)
       end
     ensure
@@ -248,7 +248,7 @@ module RCM
       return evaluate_absent! if %i[absent purged].include?(@is)
 
       create_parent_directory! if @manage_directory
-      dry? "Touching #{@file_path}" do
+      do? "Touching #{@file_path}" do
         return if @is != :updated && ::File.file?(@file_path)
 
         FileUtils.touch(@file_path)
@@ -277,7 +277,7 @@ module RCM
 
       create_parent_directory! if @manage_directory
 
-      dry? "Creating directory #{@file_path}" do
+      do? "Creating directory #{@file_path}" do
         Dir.mkdir(@file_path)
       end
     end
@@ -288,7 +288,7 @@ module RCM
       backup!(@file_path)
       what = @is == :purged ? 'Purging' : 'Deleting'
 
-      dry? "#{what} directory #{@file_path}" do
+      do? "#{what} directory #{@file_path}" do
         if ::File.directory?(@file_path)
           @is == :purged ? FileUtils.rm_r(@file_path) : Dir.delete(@file_path)
         end
