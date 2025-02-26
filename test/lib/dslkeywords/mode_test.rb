@@ -46,4 +46,30 @@ class RCMModeTest < Minitest::Test
     assert_equal 0o705, File.stat(DIR_PATH).mode.to_s(8).split('')[-4..-1].join.to_i(8)
     assert_equal 0o777, File.stat(SYMLINK_TARGET_PATH).mode.to_s(8).split('')[-4..-1].join.to_i(8)
   end
+
+  def test_chown
+    configure_from_scratch do
+      # Well, test only makes sense that it doesn't throw any exception, as test
+      # can't change files to other owners as test will likely run as non-root.
+      user_name = Etc.getlogin
+      group_name = Etc.getgrgid(Process.gid).name
+
+      touch FILE1_PATH do
+        owner user_name
+        group group_name
+      end
+      directory DIR_PATH do
+        owner user_name
+        group group_name
+      end
+
+      stat = File.stat(FILE1_PATH)
+      assert_equal user_name, Etc.getpwuid(stat.uid)
+      assert_equal group_name, Etc.getgrgid(stat.gid)
+
+      stat = File.stat(DIR_PATH)
+      assert_equal user_name, Etc.getpwuid(stat.uid)
+      assert_equal group_name, Etc.getgrgid(stat.gid)
+    end
+  end
 end

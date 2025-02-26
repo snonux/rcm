@@ -59,6 +59,8 @@ module RCM
     def path(file_path = nil) = file_path.nil? ? @file_path : @file_path = file_path
     def without(what) = @without_backup = validate(__method__, what.to_sym, :backup) == :backup
     def mode(what) = @mode = what
+    def owner(what) = @owner = what
+    def group(what) = @group = what
 
     def evaluate!
       unless super
@@ -78,12 +80,12 @@ module RCM
 
     protected
 
-    def mode!(file_path = path)
-      return if !::File.exist?(file_path) || @mode.nil?
+    def permissions!(file_path = path)
+      return unless ::File.exist?(file_path)
 
-      dry? "Setting mode of #{file_path} to #{@mode}" do
-        FileUtils.chmod(@mode, file_path)
-      end
+      stat = ::File.stat(file_path)
+      set_mode!(stat)
+      set_owner!(stat)
     end
 
     # Validate whether we can use this up in this context or not
@@ -110,6 +112,32 @@ module RCM
           Dir.rmdir(parent_dir)
         end
         parent_dir = ::File.dirname(parent_dir)
+      end
+    end
+
+    private
+
+    def set_mode!(stat, file_path = path)
+      return if @mode.nil?
+
+      current_mode = stat.mode.to_s(8).split('')[-4..-1].join.to_i(8)
+      return unless current_mode != @mode
+
+      dry? "Changing mode of #{file_path} to #{@mode}" do
+        FileUtils.chmod(@mode, file_path)
+      end
+    end
+
+    def set_owner!(stat, file_path = path)
+      return if @owner.nil? && @group.nil?
+
+      current_owner = Etc.getpwuid(stat.uid)
+      current_group = Etc.getgrgid(stat.gid)
+
+      return if (@owner.nil? || @owner == current_owner) && (@group.nil? || @group == current_group)
+
+      dry? "Changing owner of #{file_path} to #{@owner || ''}:#{@group || ''}" do
+        FileUtils.chown(@owner, @group, file_path)
       end
     end
   end
@@ -147,7 +175,7 @@ module RCM
 
       write!(content)
     ensure
-      mode!
+      permissions!
     end
 
     private
@@ -207,7 +235,7 @@ module RCM
         FileUtils.ln_sf(content, @file_path)
       end
     ensure
-      mode!
+      permissions!
     end
   end
 
@@ -226,7 +254,7 @@ module RCM
         FileUtils.touch(@file_path)
       end
     ensure
-      mode!
+      permissions!
     end
   end
 
@@ -241,7 +269,7 @@ module RCM
         evaluate_absent!
       end
     ensure
-      mode!
+      permissions!
     end
 
     def evaluate_present!
