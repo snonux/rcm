@@ -121,7 +121,7 @@ module RCM
       return if @mode.nil?
 
       current_mode = stat.mode.to_s(8).split('')[-4..-1].join.to_i(8)
-      return unless current_mode != @mode
+      return if current_mode == @mode
 
       do? "Changing mode of #{file_path} to #{@mode}" do
         FileUtils.chmod(@mode, file_path)
@@ -195,10 +195,11 @@ module RCM
     def evaluate_ensure_line_absent!
       return unless ::File.file?(@file_path)
 
+      lines = ::File.readlines(@file_path, chomp: true)
+      return unless lines.include?(@ensure_line)
+
       do? "Removing line #{@ensure_line} from #{@file_path}" do
-        write!(::File.readlines(@file_path, chomp: true).reject do |line|
-                 line == @ensure_line
-               end.join("\n"))
+        write!(lines.reject { |line| line == @ensure_line }.join("\n"))
       end
     end
 
@@ -217,7 +218,7 @@ module RCM
         backup!(@file_path, checksum) # File changed, backup!
       end
 
-      do? "Writing #{@file_path}" do
+      do? "Writing file #{@file_path}" do
         ::File.rename(tmp_path, @file_path)
       end
       ::File.delete(tmp_path) if ::File.file?(tmp_path)
@@ -229,6 +230,7 @@ module RCM
     def evaluate!
       return unless super
       return evaluate_absent! if %i[absent purged].include?(@is)
+      return if ::File.symlink?(@file_path) && ::File.readlink(@file_path) == content
 
       create_parent_directory! if @manage_directory
       do? "Creating symlink #{@file_path}" do
@@ -246,11 +248,10 @@ module RCM
     def evaluate!
       return unless super
       return evaluate_absent! if %i[absent purged].include?(@is)
+      return if ::File.file?(@file_path) && @is != :updated
 
       create_parent_directory! if @manage_directory
       do? "Touching #{@file_path}" do
-        return if @is != :updated && ::File.file?(@file_path)
-
         FileUtils.touch(@file_path)
       end
     ensure
