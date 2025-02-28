@@ -1,6 +1,8 @@
 # TODO
 
+* TODO's from the source code
 * Recursively change file permissions (for files and dirs)
+* Purge and copy recursevly a directory
 * Change permissions of a directory recursively
 * CRON jobs
   * Fedora

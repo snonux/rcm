@@ -48,6 +48,7 @@ class RCMDirectoryTest < Minitest::Test
     refute File.directory?(DIR_PATH)
   end
 
+  # TODO: Unit test
   def test_copy_directory_recursively
     expected_files = {}
 

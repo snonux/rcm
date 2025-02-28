@@ -324,6 +324,7 @@ module RCM
       end
     end
 
+    # TODO: Unit test this
     def backup_recursively!(source, dest)
       Dir.foreach(source) do |entry|
         next if ['.', '..'].include?(entry)
