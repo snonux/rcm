@@ -320,7 +320,11 @@ module RCM
       end
 
       do? "Copying #{source_path} -> #{@file_path} resursively" do
-        Dir["#{source_path}/*"].each { FileUtils.cp_r(_1, @file_path) }
+        if File.directory?(@file_path)
+          Dir["#{source_path}/*"].each { FileUtils.cp_r(_1, @file_path) }
+        else
+          FileUtils.cp_r(source_path, @file_path)
+        end
       end
     end
 
