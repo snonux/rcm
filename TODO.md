@@ -1,6 +1,6 @@
 # TODO
 
-* Recursively install a directory (rsync? custom file copier?)
+* Recursively change file permissions (for files and dirs)
 * Change permissions of a directory recursively
 * CRON jobs
   * Fedora

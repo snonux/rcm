@@ -8,6 +8,7 @@ require_relative '../chained'
 module RCM
   # Backup the file on change
   module FileBackup
+    # TODO: Make protected?
     def backup!(file_path, checksum = nil)
       return if @without_backup
 
@@ -17,6 +18,12 @@ module RCM
                  Time.now.strftime('%s-%L')
                end
       make_backup!(file_path, suffix)
+    end
+
+    def different?(file_a, file_b)
+      checksum_a = Digest::SHA256.file(file_a).hexdigest
+      checksum_b = Digest::SHA256.file(file_b).hexdigest
+      [checksum_a == checksum_b, checksum_a, cecksum_b]
     end
 
     private
@@ -208,10 +215,8 @@ module RCM
       ::File.write(tmp_path, text)
 
       if ::File.file?(@file_path)
-        checksum = Digest::SHA256.file(@file_path).hexdigest
-        tmp_checksum = Digest::SHA256.file(tmp_path).hexdigest
-
-        if tmp_checksum == checksum
+        different, checksum, = different?(@file_path, tmp_path)
+        unless different
           ::File.delete(tmp_path) # File has not changed, not doing anything
           return
         end
@@ -260,6 +265,8 @@ module RCM
   end
 
   class Directory < BaseFile
+    def recursively = @recursively = true
+
     def evaluate!
       return unless super
 
@@ -273,8 +280,12 @@ module RCM
       permissions!
     end
 
+    private
+
     def evaluate_present!
-      return if ::File.directory?(@file_path)
+      if ::File.directory?(@file_path)
+        return @recursively ? evaluate_present_recursively! : nil
+      end
 
       create_parent_directory! if @manage_directory
 
@@ -287,14 +298,49 @@ module RCM
       return unless ::File.directory?(@file_path)
 
       backup!(@file_path)
+      @recursively = true if @is == :purged
       what = @is == :purged ? 'Purging' : 'Deleting'
 
       do? "#{what} directory #{@file_path}" do
         if ::File.directory?(@file_path)
-          @is == :purged ? FileUtils.rm_r(@file_path) : Dir.delete(@file_path)
+          @recursively ? FileUtils.rm_r(@file_path) : Dir.delete(@file_path)
         end
       end
       cleanup_parent_directory! if @manage_directory
+    end
+
+    def evaluate_present_recursively!
+      source_path = content
+      raise "Source #{source_path} is not a directory!" unless ::File.directory?(source_path)
+
+      if ::File.exist?(@file_path)
+        raise "Destination #{@file_path} is not a directory!" unless ::File.directory?(@file_path)
+
+        backup_resursively!(source_path, @file_path) unless @without_backup
+      end
+
+      do? "Copying #{source_path} -> #{@file_path} resursively" do
+        Dir["#{source_path}/*"].each { FileUtils.cp_r(_1, @file_path) }
+      end
+    end
+
+    def backup_recursively!(source, dest)
+      Dir.foreach(source) do |entry|
+        next if ['.', '..'].include?(entry)
+
+        source_path = ::File.join(source, entry)
+        dest_path = ::File.join(dest, entry)
+
+        if ::File.directory?(source_path) && !::File.directory?(dest_path)
+          raise "Unable to copy directory #{source_path} into non-directory #{dest_path}"
+        elsif !::File.directory?(source_path) && ::File.directory?(dest_path)
+          raise "Unable to copy non-directory #{source_path} into directory #{dest_path}"
+        elsif ::File.directory?(source_path) && ::File.directory?(dest_path)
+          backup_recursively!(source_path, dest_path)
+        else
+          backup!(dest_path)
+        end
+      end
     end
   end
 
