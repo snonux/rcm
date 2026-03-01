@@ -323,10 +323,10 @@ module RCM
       if ::File.exist?(@file_path)
         raise "Destination #{@file_path} is not a directory!" unless ::File.directory?(@file_path)
 
-        backup_resursively!(source_path, @file_path) unless @without_backup
+        backup_recursively!(source_path, @file_path) unless @without_backup
       end
 
-      do? "Copying #{source_path} -> #{@file_path} resursively" do
+      do? "Copying #{source_path} -> #{@file_path} recursively" do
         if ::File.directory?(@file_path)
           Dir["#{source_path}/*"].each { FileUtils.cp_r(_1, @file_path) }
         else
