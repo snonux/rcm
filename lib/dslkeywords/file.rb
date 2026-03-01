@@ -9,11 +9,17 @@ require_relative 'file_backup'
 module RCM
   # Base class shared by all file-system resources (files, symlinks,
   # touch, directories). Manages path, state (:present/:absent/:purged),
-  # permissions (mode/owner/group), parent-directory lifecycle, and the
-  # FileBackup mixin.
+  # permissions (mode/owner/group), and parent-directory lifecycle.
+  # Does NOT include content/templating — those belong in BaseFile so
+  # Touch and Directory (which have no file content) don't inherit them.
   class BasicFile < Resource
     include Chained
     include FileBackup
+
+    # Raised by validate when an unsupported DSL option is used.
+    # Defined here so BasicFile#validate can raise it even when the
+    # concrete class does not extend BaseFile.
+    class UnsupportedOperation < StandardError; end
 
     def initialize(file_path)
       super(file_path)
@@ -37,14 +43,6 @@ module RCM
       true
     end
 
-    def content(text = nil)
-      if text.nil?
-        text = @from == :sourcefile ? ::File.read(@content) : @content
-        return @from == :template ? ERB.new(text).result : text
-      end
-      @content = text.instance_of?(Array) ? text.join("\n") : text
-    end
-
     protected
 
     def permissions!(file_path = path)
@@ -61,6 +59,18 @@ module RCM
 
       raise UnsupportedOperation,
             "Unsupported '#{method}' operation #{what} (#{what.class})"
+    end
+
+    # Delete the resource and optionally remove orphaned parent directories.
+    # Used by File, Symlink, and Touch; Directory overrides this.
+    def evaluate_absent!
+      if ::File.exist?(@file_path)
+        do? "Deleting #{@file_path}" do
+          backup!(@file_path)
+          ::File.delete(@file_path) if ::File.file?(@file_path)
+        end
+      end
+      cleanup_parent_directory! if @manage_directory
     end
 
     def create_parent_directory!
@@ -109,23 +119,22 @@ module RCM
     end
   end
 
-  # Intermediate base for resources that have file content and support
-  # :sourcefile / :template sourcing, and absent-state deletion.
+  # Intermediate base for resources that carry file content: regular files
+  # and symlinks. Adds content storage with optional ERB templating or
+  # sourcefile reading. Touch and Directory extend BasicFile directly so
+  # they are not burdened with content/from (ISP).
   class BaseFile < BasicFile
-    class UnsupportedOperation < StandardError; end
-
     def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
 
-    protected
-
-    def evaluate_absent!
-      if ::File.exist?(@file_path)
-        do? "Deleting #{@file_path}" do
-          backup!(@file_path)
-          ::File.delete(@file_path) if ::File.file?(@file_path)
-        end
+    # Return or set the resource's content.
+    # Getter: resolves ERB templates or reads sourcefile on demand.
+    # Setter: stores plain text or joins an array with newlines.
+    def content(text = nil)
+      if text.nil?
+        text = @from == :sourcefile ? ::File.read(@content) : @content
+        return @from == :template ? ERB.new(text).result : text
       end
-      cleanup_parent_directory! if @manage_directory
+      @content = text.instance_of?(Array) ? text.join("\n") : text
     end
   end
 

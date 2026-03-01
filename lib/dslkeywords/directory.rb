@@ -5,8 +5,14 @@ require_relative 'file'
 module RCM
   # Manages directories: create, delete/purge, or recursively copy from
   # a source directory. Backup is performed before destructive operations.
-  class Directory < BaseFile
+  # Extends BasicFile directly — Directory has no file content or sourcing,
+  # so it must not inherit content/from from BaseFile (ISP). The source
+  # directory for recursive copy is stored via the separate #source method.
+  class Directory < BasicFile
     def recursively = @recursively = true
+
+    # Set or get the source directory path used for recursive copy.
+    def source(path = nil) = path.nil? ? @source_path : @source_path = path
 
     def evaluate!
       return unless super
@@ -35,6 +41,8 @@ module RCM
       end
     end
 
+    # Override BasicFile#evaluate_absent! with directory-specific behaviour:
+    # optionally recursive removal and backup of the whole directory tree.
     def evaluate_absent!
       return unless ::File.directory?(@file_path)
 
@@ -51,20 +59,20 @@ module RCM
     end
 
     def evaluate_present_recursively!
-      source_path = content
-      raise "Source #{source_path} is not a directory!" unless ::File.directory?(source_path)
+      src = source
+      raise "Source #{src} is not a directory!" unless ::File.directory?(src)
 
       if ::File.exist?(@file_path)
         raise "Destination #{@file_path} is not a directory!" unless ::File.directory?(@file_path)
 
-        backup_recursively!(source_path, @file_path) unless @without_backup
+        backup_recursively!(src, @file_path) unless @without_backup
       end
 
-      do? "Copying #{source_path} -> #{@file_path} recursively" do
+      do? "Copying #{src} -> #{@file_path} recursively" do
         if ::File.directory?(@file_path)
-          Dir["#{source_path}/*"].each { FileUtils.cp_r(_1, @file_path) }
+          Dir["#{src}/*"].each { FileUtils.cp_r(_1, @file_path) }
         else
-          FileUtils.cp_r(source_path, @file_path)
+          FileUtils.cp_r(src, @file_path)
         end
       end
     end
@@ -96,7 +104,9 @@ module RCM
       return unless @conds_met
 
       d = Directory.new(file_path)
-      d.content(d.instance_eval(&block))
+      # Use source= for the recursive-copy source path rather than content=,
+      # keeping Directory's interface clean and purpose-named.
+      d.source(d.instance_eval(&block))
       self << d
       d
     end

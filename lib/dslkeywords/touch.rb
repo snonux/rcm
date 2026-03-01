@@ -5,7 +5,9 @@ require_relative 'file'
 module RCM
   # Creates an empty file (touch semantics). Supports the additional
   # :updated state which re-touches the file even when it already exists.
-  class Touch < BaseFile
+  # Extends BasicFile directly — Touch has no file content or sourcing,
+  # so it must not inherit content/from from BaseFile (ISP).
+  class Touch < BasicFile
     def is(what) = @is = validate(__method__, what.to_sym, :present, :absent, :purged, :updated)
 
     def evaluate!
