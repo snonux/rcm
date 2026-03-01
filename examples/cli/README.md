@@ -8,26 +8,26 @@ To make it available on your `PATH`:
 export PATH="$PATH:/path/to/rcm/bin"
 ```
 
-Or invoke it directly:
+Or invoke it directly using the relative path from this directory:
 
 ```sh
-/path/to/rcm/bin/rcm config.rb --dry
+../../bin/rcm config.rb --dry
 ```
 
 ## Usage
 
 ```sh
 # Dry run — show what would change, make no changes
-rcm config.rb --dry
+../../bin/rcm config.rb --dry
 
 # Verbose output
-rcm config.rb --debug
+../../bin/rcm config.rb --debug
 
 # Limit execution to specific hosts
-rcm config.rb --hosts earth,mars
+../../bin/rcm config.rb --hosts earth,mars
 
 # Apply configuration
-rcm config.rb
+../../bin/rcm config.rb
 ```
 
 ## What it does
