@@ -1,0 +1,27 @@
+# Example: Using RCM as a gem inside a Bundler-managed project.
+#
+# Run with:
+#   bundle install
+#   bundle exec rake setup -- --dry      # dry run, no changes made
+#   bundle exec rake setup -- --debug    # verbose output
+#   bundle exec rake setup               # apply configuration
+require 'rcm'
+
+desc 'Apply system configuration'
+task :setup do
+  configure do
+    # Only run on the host named 'earth'
+    given { hostname is :earth }
+
+    # Write a WireGuard config rendered from an inline ERB template.
+    file '/tmp/example/wg0.conf' do
+      from template
+
+      <<~TEMPLATE
+        [Interface]
+        Address = <%= "10.0.0.1/24" %>
+        ListenPort = 51820
+      TEMPLATE
+    end
+  end
+end

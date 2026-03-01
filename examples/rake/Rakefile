@@ -1,0 +1,36 @@
+# Example: Using RCM with Rake (from a project directory).
+#
+# Run with:
+#   rake setup -- --dry      # dry run, no changes made
+#   rake setup -- --debug    # verbose output
+#   rake setup               # apply configuration
+#
+# This example assumes rcm is available via bundler (see Gemfile),
+# or you can swap the require for: require_relative '../../lib/dsl'
+require 'rcm'
+
+desc 'Apply system configuration'
+task :setup do
+  configure do
+    # Only run on host named 'earth'
+    given { hostname is :earth }
+
+    # Create a WireGuard config from an inline ERB template.
+    # The 'manage directory' directive creates /tmp/example/wg/ if it is missing.
+    file '/tmp/example/wg/wg0.conf' do
+      manage directory
+      from template
+
+      <<~TEMPLATE
+        [Interface]
+        Address = <%= "10.0.0.1/24" %>
+        ListenPort = 51820
+      TEMPLATE
+    end
+
+    # Ensure a specific line is present in a hosts file (idempotent).
+    file '/tmp/example/hosts.txt' do
+      line '192.168.1.101 earth.local'
+    end
+  end
+end

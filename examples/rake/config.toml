@@ -1,0 +1,4 @@
+[hostgroups]
+
+# Define groups of hosts that share configuration
+webservers = ["earth", "mars"]

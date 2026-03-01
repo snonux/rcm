@@ -1,0 +1,4 @@
+source 'https://rubygems.org'
+
+# Point at the local rcm checkout; change to gem 'rcm' once published.
+gem 'rcm', path: '../../'

@@ -40,6 +40,8 @@ This software has been written by a human by 90%, and only the last 10% were AI 
 
 ### With Rake (from the playground)
 
+See [examples/rake/](examples/rake/) for a working example.
+
 ```sh
 cd playground
 rake wireguard -- --dry
@@ -47,6 +49,8 @@ rake wireguard -- --debug
 ```
 
 ### As a Gem (from any directory)
+
+See [examples/gem/](examples/gem/) for a working example.
 
 ```ruby
 # Gemfile
@@ -76,6 +80,8 @@ bundle exec rake setup -- --dry
 
 ### Plain Ruby Script
 
+See [examples/plain_ruby/](examples/plain_ruby/) for a working example.
+
 ```ruby
 #!/usr/bin/env ruby
 require 'rcm'
@@ -92,6 +98,8 @@ ruby config.rb --dry
 ```
 
 ### Via CLI
+
+See [examples/cli/](examples/cli/) for a working example.
 
 ```sh
 rcm config.rb --dry --hosts earth,mars
