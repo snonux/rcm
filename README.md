@@ -42,24 +42,13 @@ This software has been written by a human by 90%, and only the last 10% were AI 
 
 See [examples/rake/](examples/rake/) for a working example.
 
-```sh
-cd playground
-rake wireguard -- --dry
-rake wireguard -- --debug
-```
-
-### As a Gem (from any directory)
-
-See [examples/gem/](examples/gem/) for a working example.
-
-```ruby
-# Gemfile
-gem 'rcm', path: '~/git/rcm'
-```
-
 ```ruby
 # Rakefile
-require 'rcm'
+begin
+  require 'rcm'
+rescue LoadError
+  require_relative '/path/to/rcm/lib/dsl'
+end
 
 task :setup do
   configure do
@@ -74,8 +63,37 @@ end
 ```
 
 ```sh
+cd examples/rake
+rake setup -- --dry
+rake setup -- --debug
+```
+
+### As a Gem (from any directory)
+
+See [examples/gem/](examples/gem/) for a working example.
+
+```ruby
+# Gemfile
+gem 'rcm', path: '~/git/rcm'
+```
+
+```ruby
+# config.rb
+require 'rcm'
+
+configure do
+  given { hostname is :earth }
+
+  file '/tmp/wg0.conf' do
+    from template
+    'interface = <%= "wg0" %>'
+  end
+end
+```
+
+```sh
 bundle install
-bundle exec rake setup -- --dry
+bundle exec ruby config.rb --dry
 ```
 
 ### Plain Ruby Script
@@ -84,7 +102,11 @@ See [examples/plain_ruby/](examples/plain_ruby/) for a working example.
 
 ```ruby
 #!/usr/bin/env ruby
-require 'rcm'
+begin
+  require 'rcm'
+rescue LoadError
+  require_relative '/path/to/rcm/lib/dsl'
+end
 
 configure do
   file '/tmp/hello.txt' do
