@@ -3,6 +3,23 @@ require 'set'
 require_relative 'keyword'
 
 module RCM
+  # Concern that wraps side-effecting blocks so they are skipped (and
+  # logged as dry-run) when the --dry option is active. Kept separate
+  # from dependency tracking so each module has a single responsibility.
+  module DryRun
+    # Log the action and yield the block, unless --dry is active.
+    # In dry-run mode only logs the message (with " - dry run!" appended)
+    # and returns without executing the block.
+    def do?(message)
+      if option :dry
+        info("#{message} - dry run!")
+        return
+      end
+      info(message)
+      yield
+    end
+  end
+
   # To track recource dependencies
   module ResourceDependencies
     def initialize(...)
@@ -38,16 +55,6 @@ module RCM
     end
 
     def requires?(*others) = others.flatten.none? { |other| !@requires&.include?(other) }
-
-    # Only run the block when not in dry mode
-    def do?(message)
-      if option :dry
-        info("#{message} - dry run!")
-        return
-      end
-      info(message)
-      yield
-    end
   end
 
   # To resolve dependencies
@@ -79,6 +86,7 @@ module RCM
 
   # A resource is something concrete to be managed, e.g. a file, or a CRON job.
   class Resource < Keyword
+    include DryRun
     include DependencyEvaluator
     include ResourceDependencies
 
