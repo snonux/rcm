@@ -1,0 +1,24 @@
+PATH
+  remote: ../..
+  specs:
+    rcm (0.1.0)
+      erb
+      toml (~> 0.3)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    erb (6.0.2)
+    parslet (2.0.0)
+    toml (0.3.0)
+      parslet (>= 1.8.0, < 3.0.0)
+
+PLATFORMS
+  ruby
+  x86_64-linux
+
+DEPENDENCIES
+  rcm!
+
+BUNDLED WITH
+   2.6.9
