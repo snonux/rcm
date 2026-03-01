@@ -1,6 +1,18 @@
 # Example: Via CLI
 
-Uses RCM through the `rcm` command-line tool.
+Uses RCM through the `rcm` command-line tool located at `bin/rcm` in the repository root.
+
+To make it available on your `PATH`:
+
+```sh
+export PATH="$PATH:/path/to/rcm/bin"
+```
+
+Or invoke it directly:
+
+```sh
+/path/to/rcm/bin/rcm config.rb --dry
+```
 
 ## Usage
 
