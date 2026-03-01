@@ -4,6 +4,8 @@ A KISS (Keep It Simple, Stupid) configuration management system written in Ruby,
 
 This software has been written by a human by 90%, and only the last 10% were AI assisted. The main purpose of this project was to learn about Ruby metaprogramming.
 
+![RCM DSL syntax](assets/rcm-dsl.png)
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
