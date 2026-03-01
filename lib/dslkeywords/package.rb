@@ -5,14 +5,40 @@ require_relative 'resource'
 
 module RCM
   class DNFPackageManager
+    # Raised when a dnf subcommand exits with a non-zero status or when
+    # the dnf binary cannot be found.
+    class CommandFailed < StandardError; end
+
     def installed?(pkg) = false
 
-    # Use system() with separate arguments to avoid shell injection —
-    # backtick interpolation passes the command through a shell, which
-    # allows metacharacters in pkg names to execute arbitrary commands.
-    def install(pkg) = system('dnf', 'install', '-y', pkg) unless installed?(pkg)
-    def update(pkg)  = system('dnf', 'update',  '-y', pkg)
-    def remove(pkg)  = system('dnf', 'remove',  '-y', pkg) if installed?(pkg)
+    def install(pkg)
+      return if installed?(pkg)
+
+      run_dnf!('install', pkg)
+    end
+
+    def update(pkg)
+      run_dnf!('update', pkg)
+    end
+
+    def remove(pkg)
+      return unless installed?(pkg)
+
+      run_dnf!('remove', pkg)
+    end
+
+    private
+
+    # Execute dnf <subcommand> -y <pkg> using separate arguments (no shell
+    # interpolation). Raises CommandFailed when dnf exits non-zero or is
+    # not found ($? is nil when the binary cannot be exec'd).
+    def run_dnf!(subcommand, pkg)
+      result = system('dnf', subcommand, '-y', pkg)
+      return if result
+
+      exit_code = $?&.exitstatus || '?'
+      raise CommandFailed, "dnf #{subcommand} #{pkg} failed (exit #{exit_code})"
+    end
   end
 
   # Managing packages
@@ -23,7 +49,8 @@ module RCM
 
     def initialize(name)
       super(name)
-      raise UnsupportedOS, 'OS is not supported' unless File.file?('/etc/fedora-release')
+      # Use ::File to avoid resolving to RCM::File once file.rb is loaded.
+      raise UnsupportedOS, 'OS is not supported' unless ::File.file?('/etc/fedora-release')
 
       @manager = DNFPackageManager.new
 
