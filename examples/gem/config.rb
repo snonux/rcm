@@ -2,7 +2,11 @@
 # Example: Using RCM as a gem inside a Bundler-managed project, without Rake.
 #
 # rcm is declared in the Gemfile and loaded via bundler.
-require 'rcm'
+begin
+  require 'rcm'
+rescue LoadError
+  require_relative '../../lib/dsl'
+end
 
 configure do
   # Only run on the host named 'earth'

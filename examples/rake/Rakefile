@@ -7,7 +7,11 @@
 #
 # This example assumes rcm is available via bundler (see Gemfile),
 # or you can swap the require for: require_relative '../../lib/dsl'
-require 'rcm'
+begin
+  require 'rcm'
+rescue LoadError
+  require_relative '../../lib/dsl'
+end
 
 desc 'Apply system configuration'
 task :setup do
