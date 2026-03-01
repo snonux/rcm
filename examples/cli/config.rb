@@ -7,9 +7,7 @@
 #   rcm config.rb --hosts earth,mars       # limit to specific hosts
 #   rcm config.rb                          # apply configuration
 #
-# Requires rcm to be installed as a gem, or adjust the path below:
-#   require_relative '../../lib/dsl'
-require 'rcm'
+# rcm is already loaded by the bin/rcm CLI tool before this file is executed.
 
 configure do
   # Only apply the block below when running on host 'earth'.

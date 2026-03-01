@@ -14,5 +14,12 @@ unless File.exist?(config_file)
   exit 1
 end
 
-require 'rcm'
+# Try the installed gem first; fall back to the lib/ directory relative to
+# this script so the CLI works directly from a repository checkout.
+begin
+  require 'rcm'
+rescue LoadError
+  require_relative '../lib/dsl'
+end
+
 load config_file
