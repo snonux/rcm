@@ -4,6 +4,9 @@ require_relative 'log'
 require_relative 'chained'
 
 require_relative 'dslkeywords/file'
+require_relative 'dslkeywords/symlink'
+require_relative 'dslkeywords/touch'
+require_relative 'dslkeywords/directory'
 require_relative 'dslkeywords/given'
 require_relative 'dslkeywords/notify'
 
