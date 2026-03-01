@@ -8,7 +8,11 @@
 #
 # Requires rcm to be installed as a gem, or adjust the path below:
 #   require_relative '../../lib/dsl'
-require 'rcm'
+begin
+  require 'rcm'
+rescue LoadError
+  require_relative '../../lib/dsl'
+end
 
 configure do
   # Write a simple text file with static content.

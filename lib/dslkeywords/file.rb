@@ -211,6 +211,14 @@ module RCM
     end
 
     def write!(text)
+      # In dry-run mode skip all filesystem access and just report what would
+      # happen — the parent directory may not exist yet so we cannot write the
+      # temporary file at all.
+      if option :dry
+        info "Writing file #{@file_path} - dry run!"
+        return
+      end
+
       tmp_path = "#{@file_path}.rcmtmp"
       ::File.write(tmp_path, text)
 
@@ -223,9 +231,8 @@ module RCM
         backup!(@file_path, checksum) # File changed, backup!
       end
 
-      do? "Writing file #{@file_path}" do
-        ::File.rename(tmp_path, @file_path)
-      end
+      info "Writing file #{@file_path}"
+      ::File.rename(tmp_path, @file_path)
       ::File.delete(tmp_path) if ::File.file?(tmp_path)
     end
   end
