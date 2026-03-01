@@ -20,15 +20,14 @@ module RCM
     end
   end
 
-  # To track recource dependencies
+  # To track resource dependencies
   module ResourceDependencies
     def initialize(...)
       super(...)
       @requires = Set.new
-      @valid_resources = Set.new
-      ObjectSpace.each_object(Class).each do |klass|
-        @valid_resources << klass.to_s.sub('RCM::', '').downcase.to_sym if klass < Resource
-      end
+      # Use the class-level registry (populated via Resource.inherited) rather
+      # than scanning ObjectSpace — deterministic, load-order-safe, and O(1).
+      @valid_resources = Resource.subclass_names
     end
 
     def method_missing(method_name, *args)
@@ -92,6 +91,20 @@ module RCM
 
     class NoSuchResourceObject < StandardError; end
     @@resource_find_cache = {}
+
+    # Class-level registry: every subclass is registered here when it is
+    # first loaded (via the inherited hook), so ResourceDependencies can
+    # look up valid keyword names without scanning ObjectSpace.
+    @@subclass_names = Set.new
+
+    def self.inherited(subclass)
+      super
+      @@subclass_names << subclass.to_s.sub('RCM::', '').downcase.to_sym
+    end
+
+    # Return a frozen snapshot so callers cannot accidentally mutate the
+    # shared registry through the @valid_resources instance variable.
+    def self.subclass_names = @@subclass_names.freeze
 
     def self.find(id)
       return @@resource_find_cache[id] if @@resource_find_cache.key?(id)
