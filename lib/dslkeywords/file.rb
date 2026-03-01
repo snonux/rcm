@@ -209,15 +209,8 @@ module RCM
   end
 
   class DSL
-    # Add file keyword to the DSL
     def file(file_path = nil, &block)
-      return :file if file_path.nil?
-      return unless @conds_met
-
-      f = File.new(file_path)
-      f.content(f.instance_eval(&block))
-      self << f
-      f
+      register_keyword(File, :file, file_path) { |f| f.content(f.instance_eval(&block)) }
     end
   end
 end

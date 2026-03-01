@@ -22,13 +22,7 @@ module RCM
 
   class DSL
     def symlink(file_path = nil, &block)
-      return :symlink if file_path.nil?
-      return unless @conds_met
-
-      s = Symlink.new(file_path)
-      s.content(s.instance_eval(&block))
-      self << s
-      s
+      register_keyword(Symlink, :symlink, file_path) { |s| s.content(s.instance_eval(&block)) }
     end
   end
 end

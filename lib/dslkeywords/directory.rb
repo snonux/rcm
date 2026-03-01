@@ -100,15 +100,7 @@ module RCM
 
   class DSL
     def directory(file_path = nil, &block)
-      return :directory if file_path.nil?
-      return unless @conds_met
-
-      d = Directory.new(file_path)
-      # Use source= for the recursive-copy source path rather than content=,
-      # keeping Directory's interface clean and purpose-named.
-      d.source(d.instance_eval(&block))
-      self << d
-      d
+      register_keyword(Directory, :directory, file_path) { |d| d.source(d.instance_eval(&block)) }
     end
   end
 end

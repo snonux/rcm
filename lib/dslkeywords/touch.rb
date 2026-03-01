@@ -26,13 +26,7 @@ module RCM
 
   class DSL
     def touch(file_path = nil, &block)
-      return :touch if file_path.nil?
-      return unless @conds_met
-
-      t = Touch.new(file_path)
-      t.instance_eval(&block) if block
-      self << t
-      t
+      register_keyword(Touch, :touch, file_path) { |t| t.instance_eval(&block) if block }
     end
   end
 end
