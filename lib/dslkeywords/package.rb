@@ -6,9 +6,13 @@ require_relative 'resource'
 module RCM
   class DNFPackageManager
     def installed?(pkg) = false
-    def install(pkg) = `dnf install -y "#{pkg}"` unless installed?(pkg)
-    def update(pkg) = `dnf update -y "#{pkg}"`
-    def remove(pkg) = `dnf remove -y "#{pkg}"` if installed?(pkg)
+
+    # Use system() with separate arguments to avoid shell injection —
+    # backtick interpolation passes the command through a shell, which
+    # allows metacharacters in pkg names to execute arbitrary commands.
+    def install(pkg) = system('dnf', 'install', '-y', pkg) unless installed?(pkg)
+    def update(pkg)  = system('dnf', 'update',  '-y', pkg)
+    def remove(pkg)  = system('dnf', 'remove',  '-y', pkg) if installed?(pkg)
   end
 
   # Managing packages
