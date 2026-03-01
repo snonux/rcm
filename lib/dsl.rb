@@ -71,10 +71,11 @@ module RCM
 end
 
 def configure(reset: false, &block)
-  # Parse ARGV each time configure is called so that scripts which call
-  # configure multiple times (or test suites that reset state) always
-  # start with a fresh, consistent option set.
+  # Parse ARGV and load config.toml each time configure is called so that
+  # scripts and test suites that call configure multiple times always
+  # start from a consistent, freshly-loaded state.
   RCM::Options.parse!
+  RCM::Config.load!
   RCM::DSL.new(reset) do |rcm|
     rcm.info('Configuring...')
     rcm.instance_eval(&block)
