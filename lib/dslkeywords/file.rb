@@ -23,7 +23,7 @@ module RCM
     def different?(file_a, file_b)
       checksum_a = Digest::SHA256.file(file_a).hexdigest
       checksum_b = Digest::SHA256.file(file_b).hexdigest
-      [checksum_a == checksum_b, checksum_a, cecksum_b]
+      [checksum_a != checksum_b, checksum_a, checksum_b]
     end
 
     private
@@ -320,7 +320,7 @@ module RCM
       end
 
       do? "Copying #{source_path} -> #{@file_path} resursively" do
-        if File.directory?(@file_path)
+        if ::File.directory?(@file_path)
           Dir["#{source_path}/*"].each { FileUtils.cp_r(_1, @file_path) }
         else
           FileUtils.cp_r(source_path, @file_path)

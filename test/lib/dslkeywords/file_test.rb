@@ -12,6 +12,12 @@ class RCMFileTest < Minitest::Test
     FileUtils.rm_r(DIR_PATH) if File.directory?(DIR_PATH)
   end
 
+  # Clean up shared temp file between tests to prevent order-dependent failures
+  def setup
+    File.unlink(FILE_PATH) if File.file?(FILE_PATH)
+    FileUtils.rm_r(DIR_PATH) if File.directory?(DIR_PATH)
+  end
+
   def test_create_file_from_string
     text = 'Hello World!'
     configure_from_scratch do

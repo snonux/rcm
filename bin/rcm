@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+# CLI entry point for RCM configuration management.
+# Usage: rcm <config.rb> [--dry] [--debug] [--hosts host1,host2]
+
+if ARGV.empty? || ARGV.first.start_with?('-')
+  warn "Usage: rcm <config.rb> [--dry] [--debug] [--hosts host1,host2]"
+  exit 1
+end
+
+config_file = ARGV.shift
+
+unless File.exist?(config_file)
+  warn "Error: file not found: #{config_file}"
+  exit 1
+end
+
+require 'rcm'
+load config_file

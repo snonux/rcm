@@ -17,6 +17,10 @@ module RCM
     def met?
       return false if @conds.key?(:hostname) && Socket.gethostname != @conds[:hostname].to_s
 
+      # When --hosts is specified, only run on the listed hosts
+      hosts = option(:hosts)
+      return false if hosts.any? && !hosts.include?(Socket.gethostname)
+
       true
     end
   end
