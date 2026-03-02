@@ -1,0 +1,15 @@
+# Install gem dependencies
+setup:
+    bundle install
+
+# Apply configuration
+run:
+    rake setup
+
+# Dry run — show what would change without making changes
+dry:
+    rake setup -- --dry
+
+# Verbose output
+debug:
+    rake setup -- --debug

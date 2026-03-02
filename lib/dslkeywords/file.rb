@@ -4,56 +4,22 @@ require 'fileutils'
 
 require_relative 'resource'
 require_relative '../chained'
+require_relative 'file_backup'
 
 module RCM
-  # Backup the file on change
-  module FileBackup
-    # TODO: Make protected?
-    def backup!(file_path, checksum = nil)
-      return if @without_backup
-
-      suffix = if ::File.file?(file_path)
-                 checksum.nil? ? Digest::SHA256.file(file_path).hexdigest : checksum
-               else
-                 Time.now.strftime('%s-%L')
-               end
-      make_backup!(file_path, suffix)
-    end
-
-    def different?(file_a, file_b)
-      checksum_a = Digest::SHA256.file(file_a).hexdigest
-      checksum_b = Digest::SHA256.file(file_b).hexdigest
-      [checksum_a != checksum_b, checksum_a, checksum_b]
-    end
-
-    private
-
-    def make_backup!(file_path, suffix)
-      backup_dir = create_backup_directory!(file_path)
-      backup_path = "#{backup_dir}/#{::File.basename(file_path)}.#{suffix}"
-      return if ::File.exist?(backup_path)
-
-      do? "Backing up #{file_path} -> #{backup_path}" do
-        ::File.rename(file_path, backup_path)
-      end
-    end
-
-    def create_backup_directory!(file_path)
-      backup_dir = "#{::File.dirname(file_path)}/.rcmbackup"
-      return backup_dir if ::File.directory?(backup_dir)
-
-      do? "Creating backup directory #{backup_dir}" do
-        Dir.mkdir(backup_dir)
-      end
-
-      backup_dir
-    end
-  end
-
-  # Base for BaseFile and Directory
+  # Base class shared by all file-system resources (files, symlinks,
+  # touch, directories). Manages path, state (:present/:absent/:purged),
+  # permissions (mode/owner/group), and parent-directory lifecycle.
+  # Does NOT include content/templating — those belong in BaseFile so
+  # Touch and Directory (which have no file content) don't inherit them.
   class BasicFile < Resource
     include Chained
     include FileBackup
+
+    # Raised by validate when an unsupported DSL option is used.
+    # Defined here so BasicFile#validate can raise it even when the
+    # concrete class does not extend BaseFile.
+    class UnsupportedOperation < StandardError; end
 
     def initialize(file_path)
       super(file_path)
@@ -77,14 +43,6 @@ module RCM
       true
     end
 
-    def content(text = nil)
-      if text.nil?
-        text = @from == :sourcefile ? ::File.read(@content) : @content
-        return @from == :template ? ERB.new(text).result : text
-      end
-      @content = text.instance_of?(Array) ? text.join("\n") : text
-    end
-
     protected
 
     def permissions!(file_path = path)
@@ -95,12 +53,24 @@ module RCM
       set_owner!(stat)
     end
 
-    # Validate whether we can use this up in this context or not
+    # Reject DSL options that are not valid for this resource type.
     def validate(method, what, *valids)
       return what if valids.include?(what)
 
       raise UnsupportedOperation,
             "Unsupported '#{method}' operation #{what} (#{what.class})"
+    end
+
+    # Delete the resource and optionally remove orphaned parent directories.
+    # Used by File, Symlink, and Touch; Directory overrides this.
+    def evaluate_absent!
+      if ::File.exist?(@file_path)
+        do? "Deleting #{@file_path}" do
+          backup!(@file_path)
+          ::File.delete(@file_path) if ::File.file?(@file_path)
+        end
+      end
+      cleanup_parent_directory! if @manage_directory
     end
 
     def create_parent_directory!
@@ -149,26 +119,27 @@ module RCM
     end
   end
 
-  # Base for File and Symlink
+  # Intermediate base for resources that carry file content: regular files
+  # and symlinks. Adds content storage with optional ERB templating or
+  # sourcefile reading. Touch and Directory extend BasicFile directly so
+  # they are not burdened with content/from (ISP).
   class BaseFile < BasicFile
-    class UnsupportedOperation < StandardError; end
-
     def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
 
-    protected
-
-    def evaluate_absent!
-      if ::File.exist?(@file_path)
-        do? "Deleting #{@file_path}" do
-          backup!(@file_path)
-          ::File.delete(@file_path) if ::File.file?(@file_path)
-        end
+    # Return or set the resource's content.
+    # Getter: resolves ERB templates or reads sourcefile on demand.
+    # Setter: stores plain text or joins an array with newlines.
+    def content(text = nil)
+      if text.nil?
+        text = @from == :sourcefile ? ::File.read(@content) : @content
+        return @from == :template ? ERB.new(text).result : text
       end
-      cleanup_parent_directory! if @manage_directory
+      @content = text.instance_of?(Array) ? text.join("\n") : text
     end
   end
 
-  # Managing files
+  # Manages regular files: write content, ensure/remove individual lines,
+  # delete. Writes via a temp file so the final rename is atomic.
   class File < BaseFile
     def line(line) = @ensure_line = line
 
@@ -237,165 +208,9 @@ module RCM
     end
   end
 
-  # Manage symlinks
-  class Symlink < BaseFile
-    def evaluate!
-      return unless super
-      return evaluate_absent! if %i[absent purged].include?(@is)
-      return if ::File.symlink?(@file_path) && ::File.readlink(@file_path) == content
-
-      create_parent_directory! if @manage_directory
-      do? "Creating symlink #{@file_path}" do
-        FileUtils.ln_sf(content, @file_path)
-      end
-    ensure
-      permissions!
-    end
-  end
-
-  # Emtpy file
-  class Touch < BaseFile
-    def is(what) = @is = validate(__method__, what.to_sym, :present, :absent, :purged, :updated)
-
-    def evaluate!
-      return unless super
-      return evaluate_absent! if %i[absent purged].include?(@is)
-      return if ::File.file?(@file_path) && @is != :updated
-
-      create_parent_directory! if @manage_directory
-      do? "Touching #{@file_path}" do
-        FileUtils.touch(@file_path)
-      end
-    ensure
-      permissions!
-    end
-  end
-
-  class Directory < BaseFile
-    def recursively = @recursively = true
-
-    def evaluate!
-      return unless super
-
-      case @is
-      when :present
-        evaluate_present!
-      when :absent, :purged
-        evaluate_absent!
-      end
-    ensure
-      permissions!
-    end
-
-    private
-
-    def evaluate_present!
-      if ::File.directory?(@file_path)
-        return @recursively ? evaluate_present_recursively! : nil
-      end
-
-      create_parent_directory! if @manage_directory
-
-      do? "Creating directory #{@file_path}" do
-        Dir.mkdir(@file_path)
-      end
-    end
-
-    def evaluate_absent!
-      return unless ::File.directory?(@file_path)
-
-      backup!(@file_path)
-      @recursively = true if @is == :purged
-      what = @is == :purged ? 'Purging' : 'Deleting'
-
-      do? "#{what} directory #{@file_path}" do
-        if ::File.directory?(@file_path)
-          @recursively ? FileUtils.rm_r(@file_path) : Dir.delete(@file_path)
-        end
-      end
-      cleanup_parent_directory! if @manage_directory
-    end
-
-    def evaluate_present_recursively!
-      source_path = content
-      raise "Source #{source_path} is not a directory!" unless ::File.directory?(source_path)
-
-      if ::File.exist?(@file_path)
-        raise "Destination #{@file_path} is not a directory!" unless ::File.directory?(@file_path)
-
-        backup_resursively!(source_path, @file_path) unless @without_backup
-      end
-
-      do? "Copying #{source_path} -> #{@file_path} resursively" do
-        if ::File.directory?(@file_path)
-          Dir["#{source_path}/*"].each { FileUtils.cp_r(_1, @file_path) }
-        else
-          FileUtils.cp_r(source_path, @file_path)
-        end
-      end
-    end
-
-    # TODO: Unit test this
-    def backup_recursively!(source, dest)
-      Dir.foreach(source) do |entry|
-        next if ['.', '..'].include?(entry)
-
-        source_path = ::File.join(source, entry)
-        dest_path = ::File.join(dest, entry)
-
-        if ::File.directory?(source_path) && !::File.directory?(dest_path)
-          raise "Unable to copy directory #{source_path} into non-directory #{dest_path}"
-        elsif !::File.directory?(source_path) && ::File.directory?(dest_path)
-          raise "Unable to copy non-directory #{source_path} into directory #{dest_path}"
-        elsif ::File.directory?(source_path) && ::File.directory?(dest_path)
-          backup_recursively!(source_path, dest_path)
-        else
-          backup!(dest_path)
-        end
-      end
-    end
-  end
-
   class DSL
-    # Add file keyword to the DSL
     def file(file_path = nil, &block)
-      return :file if file_path.nil?
-      return unless @conds_met
-
-      f = File.new(file_path)
-      f.content(f.instance_eval(&block))
-      self << f
-      f
-    end
-
-    def symlink(file_path = nil, &block)
-      return :symlink if file_path.nil?
-      return unless @conds_met
-
-      s = Symlink.new(file_path)
-      s.content(s.instance_eval(&block))
-      self << s
-      s
-    end
-
-    def touch(file_path = nil, &block)
-      return :touch if file_path.nil?
-      return unless @conds_met
-
-      t = Touch.new(file_path)
-      t.instance_eval(&block) if block
-      self << t
-      t
-    end
-
-    def directory(file_path = nil, &block)
-      return :directory if file_path.nil?
-      return unless @conds_met
-
-      d = Directory.new(file_path)
-      d.content(d.instance_eval(&block))
-      self << d
-      d
+      register_keyword(File, :file, file_path) { |f| f.content(f.instance_eval(&block)) }
     end
   end
 end

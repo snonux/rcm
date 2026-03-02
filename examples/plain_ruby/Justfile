@@ -1,0 +1,11 @@
+# Apply configuration
+run:
+    ruby config.rb
+
+# Dry run — show what would change without making changes
+dry:
+    ruby config.rb --dry
+
+# Verbose output
+debug:
+    ruby config.rb --debug

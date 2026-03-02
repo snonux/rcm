@@ -1,0 +1,17 @@
+rcm := "../../bin/rcm"
+
+# Apply configuration
+run:
+    {{rcm}} config.rb
+
+# Dry run — show what would change without making changes
+dry:
+    {{rcm}} config.rb --dry
+
+# Verbose output
+debug:
+    {{rcm}} config.rb --debug
+
+# Limit execution to specific hosts (comma-separated, e.g. just hosts earth,mars)
+hosts target:
+    {{rcm}} config.rb --hosts {{target}}

@@ -3,15 +3,31 @@ require 'set'
 require_relative 'keyword'
 
 module RCM
-  # To track recource dependencies
+  # Concern that wraps side-effecting blocks so they are skipped (and
+  # logged as dry-run) when the --dry option is active. Kept separate
+  # from dependency tracking so each module has a single responsibility.
+  module DryRun
+    # Log the action and yield the block, unless --dry is active.
+    # In dry-run mode only logs the message (with " - dry run!" appended)
+    # and returns without executing the block.
+    def do?(message)
+      if option :dry
+        info("#{message} - dry run!")
+        return
+      end
+      info(message)
+      yield
+    end
+  end
+
+  # To track resource dependencies
   module ResourceDependencies
     def initialize(...)
       super(...)
       @requires = Set.new
-      @valid_resources = Set.new
-      ObjectSpace.each_object(Class).each do |klass|
-        @valid_resources << klass.to_s.sub('RCM::', '').downcase.to_sym if klass < Resource
-      end
+      # Use the class-level registry (populated via Resource.inherited) rather
+      # than scanning ObjectSpace — deterministic, load-order-safe, and O(1).
+      @valid_resources = Resource.subclass_names
     end
 
     def method_missing(method_name, *args)
@@ -38,16 +54,6 @@ module RCM
     end
 
     def requires?(*others) = others.flatten.none? { |other| !@requires&.include?(other) }
-
-    # Only run the block when not in dry mode
-    def do?(message)
-      if option :dry
-        info("#{message} - dry run!")
-        return
-      end
-      info(message)
-      yield
-    end
   end
 
   # To resolve dependencies
@@ -79,11 +85,26 @@ module RCM
 
   # A resource is something concrete to be managed, e.g. a file, or a CRON job.
   class Resource < Keyword
+    include DryRun
     include DependencyEvaluator
     include ResourceDependencies
 
     class NoSuchResourceObject < StandardError; end
     @@resource_find_cache = {}
+
+    # Class-level registry: every subclass is registered here when it is
+    # first loaded (via the inherited hook), so ResourceDependencies can
+    # look up valid keyword names without scanning ObjectSpace.
+    @@subclass_names = Set.new
+
+    def self.inherited(subclass)
+      super
+      @@subclass_names << subclass.to_s.sub('RCM::', '').downcase.to_sym
+    end
+
+    # Return a frozen snapshot so callers cannot accidentally mutate the
+    # shared registry through the @valid_resources instance variable.
+    def self.subclass_names = @@subclass_names.freeze
 
     def self.find(id)
       return @@resource_find_cache[id] if @@resource_find_cache.key?(id)

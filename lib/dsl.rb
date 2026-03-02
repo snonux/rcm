@@ -4,6 +4,9 @@ require_relative 'log'
 require_relative 'chained'
 
 require_relative 'dslkeywords/file'
+require_relative 'dslkeywords/symlink'
+require_relative 'dslkeywords/touch'
+require_relative 'dslkeywords/directory'
 require_relative 'dslkeywords/given'
 require_relative 'dslkeywords/notify'
 
@@ -43,10 +46,36 @@ module RCM
 
       @scheduled << @@objs[obj.id] = obj
     end
+
+    private
+
+    # Shared helper for all file-system keyword registrations.
+    # Returns the keyword symbol when called without a path (used by the
+    # Chained DSL to identify resource types without creating an object).
+    # Otherwise guards on @conds_met, instantiates klass, lets the caller
+    # configure the object, registers it, and returns it.
+    #
+    # The block is always yielded — callers that accept an optional DSL
+    # block must guard for nil themselves inside the closure, e.g.
+    #   register_keyword(Touch, :touch, path) { |t| t.instance_eval(&block) if block }
+    def register_keyword(klass, name, path)
+      return name if path.nil?
+      return unless @conds_met
+
+      obj = klass.new(path)
+      yield obj
+      self << obj
+      obj
+    end
   end
 end
 
 def configure(reset: false, &block)
+  # Parse ARGV and load config.toml each time configure is called so that
+  # scripts and test suites that call configure multiple times always
+  # start from a consistent, freshly-loaded state.
+  RCM::Options.parse!
+  RCM::Config.load!
   RCM::DSL.new(reset) do |rcm|
     rcm.info('Configuring...')
     rcm.instance_eval(&block)
