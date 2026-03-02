@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.required_ruby_version = '>= 3.3.0'
   s.name                  = 'rcm'
-  s.version               = '0.1.1'
+  s.version               = '0.1.2'
   s.licenses              = ['BSD3']
   s.summary               = 'Ruby Configuration Management system'
   s.description           = 'To configure my stuff'
