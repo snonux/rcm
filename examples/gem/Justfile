@@ -1,0 +1,15 @@
+# Install gem dependencies
+setup:
+    bundle install
+
+# Apply configuration
+run:
+    bundle exec ruby config.rb
+
+# Dry run — show what would change without making changes
+dry:
+    bundle exec ruby config.rb --dry
+
+# Verbose output
+debug:
+    bundle exec ruby config.rb --debug
