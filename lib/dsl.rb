@@ -26,6 +26,8 @@ module RCM
       @@objs = {}
     end
 
+    def self.object(id) = @@objs[id]
+
     reset!
 
     include Config

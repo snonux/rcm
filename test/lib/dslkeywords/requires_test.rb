@@ -1,3 +1,6 @@
+# frozen_string_literal: true
+
+# rubocop:disable Metrics/AbcSize, Metrics/MethodLength
 require 'minitest/autorun'
 require 'fileutils'
 
@@ -71,4 +74,26 @@ class RCMRequiresTest < Minitest::Test
       end
     end
   end
+
+  def test_configure_from_scratch_uses_current_resource_registry
+    first = second = nil
+
+    configure_from_scratch do
+      first = notify same do
+        first_run
+      end
+    end
+
+    configure_from_scratch do
+      second = notify same do
+        second_run
+      end
+    end
+
+    found = RCM::Resource.find("notify('same')")
+    refute_same first, found
+    assert_same second, found
+  end
 end
+
+# rubocop:enable Metrics/AbcSize, Metrics/MethodLength

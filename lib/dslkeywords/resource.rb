@@ -1,7 +1,8 @@
-require 'set'
+# frozen_string_literal: true
 
 require_relative 'keyword'
 
+# rubocop:disable Style/ClassVars
 module RCM
   # Concern that wraps side-effecting blocks so they are skipped (and
   # logged as dry-run) when the --dry option is active. Kept separate
@@ -90,7 +91,6 @@ module RCM
     include ResourceDependencies
 
     class NoSuchResourceObject < StandardError; end
-    @@resource_find_cache = {}
 
     # Class-level registry: every subclass is registered here when it is
     # first loaded (via the inherited hook), so ResourceDependencies can
@@ -107,13 +107,16 @@ module RCM
     def self.subclass_names = @@subclass_names.freeze
 
     def self.find(id)
-      return @@resource_find_cache[id] if @@resource_find_cache.key?(id)
+      resource_name = id.split(/[( ]/).first.to_sym
+      unless subclass_names.include?(resource_name)
+        raise NameError, "uninitialized constant RCM::#{resource_name.capitalize}"
+      end
 
-      klass = Object.const_get("RCM::#{id.split(/[( ]/).first.capitalize}")
-      resource = ObjectSpace.each_object(klass).find { _1.id == id }
+      resource = DSL.object(id)
+      return resource if resource.is_a?(Resource)
+
       raise NoSuchResourceObject, "Unable to find resource #{id}" if resource.nil?
-
-      @@resource_find_cache[id] = resource
     end
   end
 end
+# rubocop:enable Style/ClassVars
