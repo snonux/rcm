@@ -221,13 +221,15 @@ module RCM
     def evaluate_agent_processing!
       raise MissingAgentInput, "File #{@file_path} does not exist for agent processing" unless ::File.file?(@file_path)
 
+      agent_definition, prompt_definition = agent_configuration!
+
       if option :dry
         info "Processing #{@file_path} with agent #{@agent_name} and prompt #{@prompt_name} - dry run!"
         return
       end
 
       input = ::File.read(@file_path)
-      output = run_agent!(input)
+      output = run_agent!(input, agent_definition, prompt_definition)
       create_parent_directory! unless ::File.directory?(::File.dirname(@file_path))
       write!(output)
     end
@@ -261,12 +263,7 @@ module RCM
     # rubocop:enable Metrics/MethodLength
 
     # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-    def run_agent!(input)
-      agent_definition = dsl.object!(AgentDefinition, @agent_name,
-                                     error_class: DSL::NoSuchAgentDefinition, kind: 'agent')
-      prompt_definition = dsl.object!(PromptDefinition, @prompt_name,
-                                      error_class: DSL::NoSuchPromptDefinition, kind: 'prompt')
-
+    def run_agent!(input, agent_definition, prompt_definition)
       Tempfile.create(['rcm-agent-input', '.txt']) do |tmp|
         tmp.write(input)
         tmp.flush
@@ -284,6 +281,13 @@ module RCM
       end
     end
     # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+
+    def agent_configuration!
+      [
+        dsl.object!(AgentDefinition, @agent_name, error_class: DSL::NoSuchAgentDefinition, kind: 'agent'),
+        dsl.object!(PromptDefinition, @prompt_name, error_class: DSL::NoSuchPromptDefinition, kind: 'prompt')
+      ]
+    end
 
     def render_agent_command(template, prompt_text, input_path)
       command = template.dup

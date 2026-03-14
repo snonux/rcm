@@ -283,6 +283,43 @@ class RCMAgentTest < Minitest::Test
     assert_equal 'keep me', File.read(file_path)
   end
 
+  def test_dry_run_unknown_agent_raises
+    file_path = path('dry-run-unknown-agent.txt')
+    File.write(file_path, 'keep me')
+    ARGV.replace(['--dry'])
+
+    assert_raises(RCM::DSL::NoSuchAgentDefinition) do
+      configure_from_scratch do
+        prompt 'no op' do
+          ''
+        end
+
+        file file_path do
+          agent 'missing agent', 'no op'
+        end
+      end
+    end
+  end
+
+  def test_dry_run_unknown_prompt_raises
+    file_path = path('dry-run-unknown-prompt.txt')
+    command = mock_agent_command(:pass_through)
+    File.write(file_path, 'keep me')
+    ARGV.replace(['--dry'])
+
+    assert_raises(RCM::DSL::NoSuchPromptDefinition) do
+      configure_from_scratch do
+        agent mock do
+          command
+        end
+
+        file file_path do
+          agent mock, 'missing prompt'
+        end
+      end
+    end
+  end
+
   def test_non_zero_exit_raises
     file_path = path('broken.txt')
     command = mock_agent_command(:fail, 'boom', '7')

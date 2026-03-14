@@ -67,7 +67,7 @@ rake wireguard -- --dry    # dry run mode
 - **Lookup by object id**: Resolve named DSL objects with `RCM::DSL#object!` and `Keyword.id_for(...)`. Duplicate detection and lookup are id-based, not hash-based by ad hoc names.
 - **Keep normalization in the keyword class**: If a DSL keyword accepts names, normalize them in the keyword class itself so registration and lookup use the same representation. Agent and prompt names may contain spaces.
 - **Keep RuboCop clean on touched files**: Run RuboCop on edited files and keep disables narrow, justified, and local. Remove stale disable directives when they are no longer needed.
-- **Run tests after behavior changes**: At minimum run `rake test`. If you change examples, execute the relevant example commands from their own directories so relative paths behave as documented.
+- **Run tests and examples before committing**: Before committing any change, make sure the full unit test suite passes and all documented examples still work from their own directories so relative paths behave as documented.
 - **Prefer documented execution paths**: Validate examples with the commands shown in the example README or Justfile unless you are explicitly fixing the docs themselves.
 
 ### Testing
