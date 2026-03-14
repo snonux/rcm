@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working with code in this repository.
 
 ## RCM (Ruby Configuration Management)
 
@@ -18,6 +18,9 @@ rake test
 # Run a specific test file
 rake test TEST=test/lib/dslkeywords/file_test.rb
 
+# Run RuboCop on the files you changed
+rubocop lib/dsl.rb lib/dslkeywords/file.rb test/lib/dslkeywords/file_test.rb
+
 # Execute a configuration task in the playground
 cd playground
 rake wireguard -- --debug  # with debug output
@@ -31,7 +34,7 @@ rake wireguard -- --dry    # dry run mode
 1. **DSL Entry Point** (`lib/dsl.rb`):
    - Provides the `configure` and `configure_from_scratch` methods
    - Manages resource scheduling and evaluation
-   - Tracks resource objects to prevent duplicates
+   - Registers all DSL objects generically and tracks them by object id to prevent duplicates
 
 2. **Base Classes**:
    - `Keyword` (`lib/dslkeywords/keyword.rb`): Base class for all DSL keywords
@@ -57,12 +60,23 @@ rake wireguard -- --dry    # dry run mode
 - **Backup System**: File operations create backups in `.rcmbackup/` directory
 - **Chained DSL**: Natural language syntax like `given { hostname is :earth }`
 
+## Project Conventions
+
+- **Use generic DSL registration**: Register new DSL objects through `RCM::DSL#register`. Avoid parallel registries or object-specific `register_*` helpers when the generic path already fits.
+- **Use `register_keyword` for resource-style DSL keywords**: File-system keywords should follow the shared `register_keyword` flow so object creation, `dsl=` wiring, registration, and scheduling stay consistent.
+- **Lookup by object id**: Resolve named DSL objects with `RCM::DSL#object!` and `Keyword.id_for(...)`. Duplicate detection and lookup are id-based, not hash-based by ad hoc names.
+- **Keep normalization in the keyword class**: If a DSL keyword accepts names, normalize them in the keyword class itself so registration and lookup use the same representation. Agent and prompt names may contain spaces.
+- **Keep RuboCop clean on touched files**: Run RuboCop on edited files and keep disables narrow, justified, and local. Remove stale disable directives when they are no longer needed.
+- **Run tests after behavior changes**: At minimum run `rake test`. If you change examples, execute the relevant example commands from their own directories so relative paths behave as documented.
+- **Prefer documented execution paths**: Validate examples with the commands shown in the example README or Justfile unless you are explicitly fixing the docs themselves.
+
 ### Testing
 
 Tests use Minitest and are located in `test/`. Test files follow the pattern `*_test.rb` and typically:
 - Create temporary files/directories with `.rcmtmp` suffix
 - Clean up after themselves using `Minitest.after_run`
 - Test individual DSL keywords and their functionality
+- Prefer realistic DSL names in tests, including names with spaces where that behavior matters
 
 ### Usage Example
 

@@ -1,6 +1,11 @@
+# frozen_string_literal: true
+
 require 'digest'
 require 'erb'
 require 'fileutils'
+require 'open3'
+require 'shellwords'
+require 'tempfile'
 
 require_relative 'resource'
 require_relative '../chained'
@@ -97,7 +102,7 @@ module RCM
     def set_mode!(stat, file_path = path)
       return if @mode.nil?
 
-      current_mode = stat.mode.to_s(8).split('')[-4..-1].join.to_i(8)
+      current_mode = stat.mode.to_s(8).split('')[-4..].join.to_i(8)
       return if current_mode == @mode
 
       do? "Changing mode of #{file_path} to #{@mode}" do
@@ -105,6 +110,7 @@ module RCM
       end
     end
 
+    # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     def set_owner!(stat, file_path = path)
       return if @owner.nil? && @group.nil?
 
@@ -117,6 +123,7 @@ module RCM
         FileUtils.chown(@owner, @group, file_path)
       end
     end
+    # rubocop:enable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
   end
 
   # Intermediate base for resources that carry file content: regular files
@@ -140,7 +147,29 @@ module RCM
 
   # Manages regular files: write content, ensure/remove individual lines,
   # delete. Writes via a temp file so the final rename is atomic.
+  # rubocop:disable Metrics/ClassLength
   class File < BaseFile
+    class AgentCommandFailed < StandardError; end
+    class InvalidAgentSpec < StandardError; end
+    class MissingAgentInput < StandardError; end
+
+    attr_reader :agent_name, :prompt_name
+
+    def agent(spec = nil, prompt_name = nil)
+      agent_name = normalize_agent_reference(spec)
+      prompt_name = normalize_agent_reference(prompt_name)
+      agent_name, prompt_name = agent_name.split(/\s+/, 2) if prompt_name.nil? && agent_name&.include?(' ')
+
+      if agent_name.nil? || prompt_name.nil?
+        raise InvalidAgentSpec, 'Expected exactly one agent name and one prompt name'
+      end
+
+      @agent_name = agent_name
+      @prompt_name = prompt_name
+    end
+
+    def agent_processing? = !@agent_name.nil?
+
     def line(line) = @ensure_line = line
 
     def evaluate!
@@ -148,6 +177,7 @@ module RCM
 
       return evaluate_ensure_line! unless @ensure_line.nil?
       return evaluate_absent! if %i[absent purged].include?(@is)
+      return evaluate_agent_processing! if agent_processing?
 
       create_parent_directory! if @manage_directory
 
@@ -181,6 +211,28 @@ module RCM
       end
     end
 
+    def normalize_agent_reference(name)
+      normalized = name&.to_s&.strip
+      return if normalized.nil? || normalized.empty?
+
+      normalized.gsub(/\s+/, ' ')
+    end
+
+    def evaluate_agent_processing!
+      raise MissingAgentInput, "File #{@file_path} does not exist for agent processing" unless ::File.file?(@file_path)
+
+      if option :dry
+        info "Processing #{@file_path} with agent #{@agent_name} and prompt #{@prompt_name} - dry run!"
+        return
+      end
+
+      input = ::File.read(@file_path)
+      output = run_agent!(input)
+      create_parent_directory! unless ::File.directory?(::File.dirname(@file_path))
+      write!(output)
+    end
+
+    # rubocop:disable Metrics/MethodLength
     def write!(text)
       # In dry-run mode skip all filesystem access and just report what would
       # happen — the parent directory may not exist yet so we cannot write the
@@ -206,11 +258,52 @@ module RCM
       ::File.rename(tmp_path, @file_path)
       ::File.delete(tmp_path) if ::File.file?(tmp_path)
     end
-  end
+    # rubocop:enable Metrics/MethodLength
 
+    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    def run_agent!(input)
+      agent_definition = dsl.object!(AgentDefinition, @agent_name,
+                                     error_class: DSL::NoSuchAgentDefinition, kind: 'agent')
+      prompt_definition = dsl.object!(PromptDefinition, @prompt_name,
+                                      error_class: DSL::NoSuchPromptDefinition, kind: 'prompt')
+
+      Tempfile.create(['rcm-agent-input', '.txt']) do |tmp|
+        tmp.write(input)
+        tmp.flush
+        tmp.close
+
+        command = render_agent_command(agent_definition.command.to_s, prompt_definition.text.to_s, tmp.path)
+        info "Processing #{@file_path} with agent #{@agent_name} and prompt #{@prompt_name}"
+        stdout, stderr, status = Open3.capture3(command, stdin_data: input)
+        return stdout if status.success?
+
+        message = stderr.to_s.strip
+        message = 'no stderr output' if message.empty?
+        raise AgentCommandFailed,
+              "Agent #{@agent_name} failed for #{@file_path} (exit #{status.exitstatus}): #{message}"
+      end
+    end
+    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+
+    def render_agent_command(template, prompt_text, input_path)
+      command = template.dup
+      command.gsub!(/\bINPUT\b/, Shellwords.escape(input_path))
+      command.gsub!(/\bPROMPT\b/, Shellwords.escape(prompt_text))
+      command.gsub!(/\bFILE_PATH\b/, Shellwords.escape(@file_path))
+      command
+    end
+  end
+  # rubocop:enable Metrics/ClassLength
+
+  # Adds the `file` resource keyword to the DSL.
   class DSL
     def file(file_path = nil, &block)
-      register_keyword(File, :file, file_path) { |f| f.content(f.instance_eval(&block)) }
+      register_keyword(File, :file, file_path) do |f|
+        next unless block
+
+        result = f.instance_eval(&block)
+        f.content(result) unless f.agent_processing? || result.nil?
+      end
     end
   end
 end

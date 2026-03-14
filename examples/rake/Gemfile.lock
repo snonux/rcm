@@ -10,6 +10,7 @@ GEM
   specs:
     erb (6.0.2)
     parslet (2.0.0)
+    rake (13.3.1)
     toml (0.3.0)
       parslet (>= 1.8.0, < 3.0.0)
 
@@ -18,6 +19,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  rake
   rcm!
 
 BUNDLED WITH

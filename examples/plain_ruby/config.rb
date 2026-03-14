@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 # Example: Plain Ruby script — no Rake, no bundler required.
 #
 # Run with:

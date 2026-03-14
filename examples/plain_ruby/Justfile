@@ -9,3 +9,15 @@ dry:
 # Verbose output
 debug:
     ruby config.rb --debug
+
+# Apply the agent-backed example
+agents:
+    ruby agents.rb
+
+# Dry run the agent-backed example
+agents-dry:
+    ruby agents.rb --dry
+
+# Verbose output for the agent-backed example
+agents-debug:
+    ruby agents.rb --debug

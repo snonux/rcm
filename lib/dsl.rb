@@ -1,8 +1,13 @@
+# frozen_string_literal: true
+
+# rubocop:disable Style/ClassVars
 require_relative 'config'
 require_relative 'options'
 require_relative 'log'
 require_relative 'chained'
 
+require_relative 'dslkeywords/agent'
+require_relative 'dslkeywords/prompt'
 require_relative 'dslkeywords/file'
 require_relative 'dslkeywords/symlink'
 require_relative 'dslkeywords/touch'
@@ -29,6 +34,9 @@ module RCM
     include Chained
 
     class DuplicateResource < StandardError; end
+    class DuplicateDefinition < StandardError; end
+    class NoSuchAgentDefinition < StandardError; end
+    class NoSuchPromptDefinition < StandardError; end
 
     def initialize(reset)
       DSL.reset! if reset
@@ -41,10 +49,20 @@ module RCM
     def to_s = @id
     def evaluate! = @scheduled.each(&:evaluate!)
 
-    def <<(obj)
-      raise DuplicateResource, "#{obj.id} already declared!" if @@objs.key?(obj.id)
+    def <<(obj) = register(obj)
 
-      @scheduled << @@objs[obj.id] = obj
+    def register(obj, schedule: obj.is_a?(Resource), duplicate_error: DuplicateResource)
+      raise duplicate_error, "#{obj.id} already declared!" if @@objs.key?(obj.id)
+
+      @@objs[obj.id] = obj
+      @scheduled << obj if schedule
+      obj
+    end
+
+    def object!(klass, name, error_class:, kind:)
+      @@objs.fetch(klass.id_for(name)) do
+        raise error_class, "No such #{kind} '#{name}'"
+      end
     end
 
     private
@@ -63,12 +81,14 @@ module RCM
       return unless @conds_met
 
       obj = klass.new(path)
+      obj.dsl = self if obj.respond_to?(:dsl=)
       yield obj
-      self << obj
-      obj
+      register(obj)
     end
   end
 end
+
+# rubocop:enable Style/ClassVars
 
 def configure(reset: false, &block)
   # Parse ARGV and load config.toml each time configure is called so that
