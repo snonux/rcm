@@ -156,9 +156,7 @@ module RCM
     attr_reader :agent_name, :prompt_name
 
     def agent(spec = nil, prompt_name = nil)
-      agent_name = normalize_agent_reference(spec)
-      prompt_name = normalize_agent_reference(prompt_name)
-      agent_name, prompt_name = agent_name.split(/\s+/, 2) if prompt_name.nil? && agent_name&.include?(' ')
+      agent_name, prompt_name = resolved_agent_spec(spec, prompt_name)
 
       if agent_name.nil? || prompt_name.nil?
         raise InvalidAgentSpec, 'Expected exactly one agent name and one prompt name'
@@ -216,6 +214,40 @@ module RCM
       return if normalized.nil? || normalized.empty?
 
       normalized.gsub(/\s+/, ' ')
+    end
+
+    def resolved_agent_spec(spec, prompt_name)
+      agent_name = normalize_agent_reference(spec)
+      prompt_name = normalize_agent_reference(prompt_name)
+      candidates = resolved_agent_candidates(agent_name, prompt_name)
+
+      return candidates.first if candidates.one?
+      raise InvalidAgentSpec, 'Ambiguous agent specification' if candidates.length > 1
+      return [agent_name, prompt_name] unless prompt_name.nil?
+      return [agent_name, nil] unless agent_name&.include?(' ')
+
+      agent_name.split(/\s+/, 2)
+    end
+
+    def resolved_agent_candidates(agent_name, prompt_name)
+      phrase = [agent_name, prompt_name].compact.join(' ')
+      parts = phrase.split(/\s+/)
+      return [] if parts.length < 2
+
+      (1...parts.length).filter_map do |index|
+        candidate_agent_name = parts[0...index].join(' ')
+        candidate_prompt_name = parts[index..].join(' ')
+        next unless definition_registered?(AgentDefinition, candidate_agent_name)
+        next unless definition_registered?(PromptDefinition, candidate_prompt_name)
+
+        [candidate_agent_name, candidate_prompt_name]
+      end
+    end
+
+    def definition_registered?(klass, name)
+      dsl.class.object(klass.id_for(name))
+    rescue klass::InvalidName
+      false
     end
 
     def evaluate_agent_processing!

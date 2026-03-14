@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/ClassLength, Metrics/MethodLength
+# rubocop:disable Metrics/ClassLength, Metrics/MethodLength, Metrics/AbcSize
 require 'minitest/autorun'
 require 'fileutils'
 require 'rbconfig'
@@ -117,20 +117,50 @@ class RCMAgentTest < Minitest::Test
     File.write(file_path, 'abc123')
 
     configure_from_scratch do
-      agent 'reverse via file' do
+      agent reverse via file do
         command
       end
 
-      prompt 'no op' do
+      prompt no op do
         ''
       end
 
       file file_path do
-        agent 'reverse via file', 'no op'
+        agent reverse via file no op
       end
     end
 
     assert_equal '321cba', File.read(file_path)
+  end
+
+  def test_agent_spec_raises_when_multiword_split_is_ambiguous
+    file_path = path('ambiguous.txt')
+    command = mock_agent_command(:pass_through)
+    File.write(file_path, 'hello')
+
+    assert_raises(RCM::File::InvalidAgentSpec) do
+      configure_from_scratch do
+        agent alpha do
+          command
+        end
+
+        agent alpha beta do
+          command
+        end
+
+        prompt gamma do
+          ''
+        end
+
+        prompt beta gamma do
+          ''
+        end
+
+        file file_path do
+          agent alpha beta gamma
+        end
+      end
+    end
   end
 
   def test_agent_can_use_file_path_placeholder
@@ -346,4 +376,4 @@ class RCMAgentTest < Minitest::Test
   end
 end
 
-# rubocop:enable Metrics/ClassLength, Metrics/MethodLength
+# rubocop:enable Metrics/ClassLength, Metrics/MethodLength, Metrics/AbcSize
