@@ -8,6 +8,7 @@ module RCM
     attr_reader :name
 
     class InvalidName < StandardError; end
+    class InvalidRetrySetting < StandardError; end
 
     def self.id_for(name) = super(normalize_name(name))
 
@@ -20,6 +21,9 @@ module RCM
 
     def initialize(name)
       @name = self.class.normalize_name(name)
+      @retries = 2
+      @retry_delay = 1.0
+      @retry_backoff = 2.0
       super(@name)
     end
 
@@ -27,6 +31,39 @@ module RCM
       return @command if text.nil?
 
       @command = text.to_s
+    end
+
+    def retries(value = nil)
+      return @retries if value.nil?
+
+      @retries = Integer(value)
+      raise InvalidRetrySetting, 'Retry count must be non-negative' if @retries.negative?
+
+      @retries
+    rescue ArgumentError, TypeError
+      raise InvalidRetrySetting, "Invalid retry count: #{value.inspect}"
+    end
+
+    def retry_delay(value = nil)
+      return @retry_delay if value.nil?
+
+      @retry_delay = Float(value)
+      raise InvalidRetrySetting, 'Retry delay must be non-negative' if @retry_delay.negative?
+
+      @retry_delay
+    rescue ArgumentError, TypeError
+      raise InvalidRetrySetting, "Invalid retry delay: #{value.inspect}"
+    end
+
+    def retry_backoff(value = nil)
+      return @retry_backoff if value.nil?
+
+      @retry_backoff = Float(value)
+      raise InvalidRetrySetting, 'Retry backoff must be at least 1.0' if @retry_backoff < 1.0
+
+      @retry_backoff
+    rescue ArgumentError, TypeError
+      raise InvalidRetrySetting, "Invalid retry backoff: #{value.inspect}"
     end
   end
 

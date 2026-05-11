@@ -3,12 +3,14 @@
 require 'digest'
 require 'erb'
 require 'fileutils'
+require 'json'
 require 'open3'
 require 'shellwords'
 require 'tempfile'
 
 require_relative 'resource'
 require_relative '../chained'
+require_relative 'command'
 require_relative 'file_backup'
 
 module RCM
@@ -131,7 +133,11 @@ module RCM
   # sourcefile reading. Touch and Directory extend BasicFile directly so
   # they are not burdened with content/from (ISP).
   class BaseFile < BasicFile
-    def from(what) = @from = validate(__method__, what.to_sym, :sourcefile, :template)
+    def from(what)
+      return what if what.is_a?(CommandDefinition::Reference)
+
+      @from = validate(__method__, what.to_sym, :sourcefile, :template)
+    end
 
     # Return or set the resource's content.
     # Getter: resolves ERB templates or reads sourcefile on demand.
@@ -149,11 +155,21 @@ module RCM
   # delete. Writes via a temp file so the final rename is atomic.
   # rubocop:disable Metrics/ClassLength
   class File < BaseFile
+    include CommandComposable
+
     class AgentCommandFailed < StandardError; end
+    class CommandFailed < StandardError; end
+    class InvalidComposition < StandardError; end
     class InvalidAgentSpec < StandardError; end
+    class InvalidAgentCacheRecord < StandardError; end
     class MissingAgentInput < StandardError; end
 
     attr_reader :agent_name, :prompt_name
+
+    def initialize(file_path)
+      super(file_path)
+      initialize_command_composition!
+    end
 
     def agent(spec = nil, prompt_name = nil)
       agent_name, prompt_name = resolved_agent_spec(spec, prompt_name)
@@ -169,6 +185,12 @@ module RCM
     def agent_processing? = !@agent_name.nil?
 
     def line(line) = @ensure_line = line
+
+    def content(text = nil)
+      return render_composed_content(super(), @file_path) if text.nil?
+
+      super
+    end
 
     def evaluate!
       return unless super
@@ -254,16 +276,23 @@ module RCM
       raise MissingAgentInput, "File #{@file_path} does not exist for agent processing" unless ::File.file?(@file_path)
 
       agent_definition, prompt_definition = agent_configuration!
+      cache_state = agent_cache_state(agent_definition, prompt_definition)
+      return skip_fresh_agent_processing! unless cache_state[:stale]
 
-      if option :dry
-        info "Processing #{@file_path} with agent #{@agent_name} and prompt #{@prompt_name} - dry run!"
-        return
-      end
+      info "Agent cache is stale for #{@file_path}: #{cache_state[:reason]}"
+      process_stale_agent!(agent_definition, prompt_definition, cache_state)
+    rescue AgentCommandFailed => e
+      warn "#{e.message}. Skipping #{@file_path} and continuing"
+    end
 
+    def process_stale_agent!(agent_definition, prompt_definition, cache_state)
       input = ::File.read(@file_path)
       output = run_agent!(input, agent_definition, prompt_definition)
+      return if option :dry
+
       create_parent_directory! unless ::File.directory?(::File.dirname(@file_path))
       write!(output)
+      refresh_agent_cache_record!(cache_state[:record_path], cache_state[:definition_fingerprint])
     end
 
     # rubocop:disable Metrics/MethodLength
@@ -294,25 +323,121 @@ module RCM
     end
     # rubocop:enable Metrics/MethodLength
 
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     def run_agent!(input, agent_definition, prompt_definition)
+      with_agent_input_file(input) do |input_path|
+        prompt_text = prompt_definition.render(@file_path)
+        return dry_run_agent_input(input) if option :dry
+
+        command = render_agent_command(agent_definition.command.to_s, prompt_text, input_path)
+        execute_agent_command_with_retries(command, input, agent_definition)
+      end
+    end
+
+    def execute_agent_command_with_retries(command, input, agent_definition)
+      attempt = 1
+      retry_state = agent_retry_state(agent_definition)
+
+      loop do
+        stdout, stderr, status = capture_agent_command(command, input, attempt, retry_state[:max_attempts])
+        return stdout if status.success?
+
+        retry_state[:delay] = handle_failed_agent_command(status, stderr, attempt, retry_state)
+        attempt += 1
+      end
+    end
+
+    def agent_retry_state(agent_definition)
+      {
+        max_attempts: agent_definition.retries + 1,
+        delay: agent_definition.retry_delay,
+        backoff: agent_definition.retry_backoff
+      }
+    end
+
+    def handle_failed_agent_command(status, stderr, attempt, retry_state)
+      failure_message = agent_command_failure_message(status, stderr, attempt, retry_state[:max_attempts])
+      retry_agent_command!(
+        failure_message,
+        attempt,
+        retry_state[:max_attempts],
+        retry_state[:delay],
+        retry_state[:backoff]
+      )
+    end
+
+    def with_agent_input_file(input)
       Tempfile.create(['rcm-agent-input', '.txt']) do |tmp|
         tmp.write(input)
         tmp.flush
         tmp.close
-
-        command = render_agent_command(agent_definition.command.to_s, prompt_definition.text.to_s, tmp.path)
-        info "Processing #{@file_path} with agent #{@agent_name} and prompt #{@prompt_name}"
-        stdout, stderr, status = Open3.capture3(command, stdin_data: input)
-        return stdout if status.success?
-
-        message = stderr.to_s.strip
-        message = 'no stderr output' if message.empty?
-        raise AgentCommandFailed,
-              "Agent #{@agent_name} failed for #{@file_path} (exit #{status.exitstatus}): #{message}"
+        yield tmp.path
       end
     end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+
+    def dry_run_agent_input(input)
+      info "Processing #{@file_path} with agent #{@agent_name} and prompt #{@prompt_name} - dry run!"
+      input
+    end
+
+    def capture_agent_command(command, input, attempt, max_attempts)
+      info agent_processing_message(attempt, max_attempts)
+      Open3.popen3(command) do |stdin, stdout, stderr, wait_thread|
+        stdin.write(input)
+        stdin.close
+
+        stdout_buffer, stderr_buffer, stream_threads = start_agent_streams(stdout, stderr)
+        stream_threads.each(&:join)
+
+        [stdout_buffer, stderr_buffer, wait_thread.value]
+      end
+    end
+
+    def retry_agent_command!(failure_message, attempt, max_attempts, retry_delay, retry_backoff)
+      raise AgentCommandFailed, failure_message if attempt >= max_attempts
+
+      warn "#{failure_message}. Retrying in #{formatted_retry_delay(retry_delay)}s"
+      sleep(retry_delay) if retry_delay.positive?
+      retry_delay * retry_backoff
+    end
+
+    def stream_agent_io(source, buffer, destination)
+      loop do
+        chunk = source.readpartial(4096)
+        buffer << chunk
+        destination.write(chunk)
+        destination.flush
+      rescue EOFError
+        break
+      end
+
+      destination.puts unless buffer.empty? || buffer.end_with?("\n")
+    end
+
+    def start_agent_streams(stdout, stderr)
+      stdout_buffer = +''
+      stderr_buffer = +''
+      stream_threads = [
+        Thread.new { stream_agent_io(stdout, stdout_buffer, $stdout) },
+        Thread.new { stream_agent_io(stderr, stderr_buffer, $stderr) }
+      ]
+      [stdout_buffer, stderr_buffer, stream_threads]
+    end
+
+    def agent_processing_message(attempt, max_attempts)
+      suffix = max_attempts > 1 ? " (attempt #{attempt}/#{max_attempts})" : ''
+      "Processing #{@file_path} with agent #{@agent_name} and prompt #{@prompt_name}#{suffix}"
+    end
+
+    def agent_command_failure_message(status, stderr, attempt, max_attempts)
+      message = stderr.to_s.strip
+      message = 'no stderr output' if message.empty?
+      attempt_suffix = max_attempts > 1 ? ", attempt #{attempt}/#{max_attempts}" : ''
+      "Agent #{@agent_name} failed for #{@file_path} (exit #{status.exitstatus}#{attempt_suffix}): #{message}"
+    end
+
+    def formatted_retry_delay(retry_delay)
+      format('%.3g', retry_delay)
+    end
 
     def agent_configuration!
       [
@@ -328,6 +453,106 @@ module RCM
       command.gsub!(/\bFILE_PATH\b/, Shellwords.escape(@file_path))
       command
     end
+
+    def agent_cache_state(agent_definition, prompt_definition)
+      file_checksum = checksum_for(@file_path)
+      definition_fingerprint = agent_definition_fingerprint(agent_definition, prompt_definition)
+      record_path = agent_cache_record_path
+      stale, reason = stale_agent_cache_record?(
+        load_agent_cache_record(record_path),
+        file_checksum,
+        definition_fingerprint
+      )
+
+      { stale:, reason:, record_path:, definition_fingerprint: }
+    end
+
+    def stale_agent_cache_record?(record, file_checksum, definition_fingerprint)
+      return [true, 'no track record'] if record.nil?
+      return [true, 'cache format changed'] if record['version'] != 2 || record['file_checksum'].nil?
+      return [true, 'file checksum changed'] if record['file_checksum'] != file_checksum
+      return [true, 'agent or prompt changed'] if record['definition_fingerprint'] != definition_fingerprint
+
+      [false, 'fresh']
+    end
+
+    def agent_definition_fingerprint(agent_definition, prompt_definition)
+      Digest::SHA256.hexdigest(
+        JSON.generate(
+          agent_command: agent_definition.command.to_s,
+          prompt: prompt_definition.fingerprint_source
+        )
+      )
+    end
+
+    def refresh_agent_cache_record!(record_path, definition_fingerprint)
+      persist_agent_cache_record!(
+        record_path,
+        agent_cache_record_payload(checksum_for(@file_path), definition_fingerprint)
+      )
+    end
+
+    def agent_cache_record_payload(file_checksum, definition_fingerprint)
+      {
+        version: 2,
+        file_path: expanded_file_path,
+        agent_name: @agent_name,
+        prompt_name: @prompt_name,
+        file_checksum:,
+        definition_fingerprint:,
+        recorded_at_ns: current_time_ns
+      }
+    end
+
+    def persist_agent_cache_record!(record_path, payload)
+      cache_dir = ::File.dirname(record_path)
+      ::FileUtils.mkdir_p(cache_dir)
+      tmp_path = "#{record_path}.tmp"
+      ::File.write(tmp_path, JSON.generate(payload))
+      ::File.rename(tmp_path, record_path)
+    rescue SystemCallError => e
+      warn "Unable to persist agent cache #{record_path}: #{e.message}"
+      ::File.delete(tmp_path) if defined?(tmp_path) && ::File.file?(tmp_path)
+    end
+
+    def load_agent_cache_record(record_path)
+      return unless ::File.file?(record_path)
+
+      JSON.parse(::File.read(record_path))
+    rescue JSON::ParserError, SystemCallError => e
+      warn "Ignoring invalid agent cache #{record_path}: #{e.message}"
+      nil
+    end
+
+    def agent_cache_record_path
+      key = Digest::SHA256.hexdigest(
+        JSON.generate(file_path: expanded_file_path, agent_name: @agent_name, prompt_name: @prompt_name)
+      )
+      ::File.join(agent_cache_dir, "#{key}.json")
+    end
+
+    def agent_cache_dir
+      cache_root = ENV['XDG_CACHE_HOME'] || ::File.expand_path('~/.cache')
+      ::File.join(cache_root, 'rcm', 'agents')
+    end
+
+    def expanded_file_path = ::File.expand_path(@file_path)
+
+    def current_time_ns
+      now = ::Time.now
+      (now.to_i * 1_000_000_000) + now.nsec
+    end
+
+    def skip_fresh_agent_processing!
+      info "Skipping #{@file_path} with agent #{@agent_name} and prompt #{@prompt_name}; agent cache is fresh"
+    end
+
+    def invalid_command_composition!(position)
+      raise InvalidComposition, "#{position} expects `from command ...`"
+    end
+
+    def command_failure_class = CommandFailed
+    def command_composition_subject = "file #{@file_path}"
   end
   # rubocop:enable Metrics/ClassLength
 

@@ -17,6 +17,7 @@ This software has been written by a human by 90%, and only the last 10% were AI 
 - [DSL Reference](#dsl-reference)
   - [configure / configure_from_scratch](#configure--configure_from_scratch)
   - [file](#file)
+  - [agent / prompt / command](#agent--prompt--command)
   - [touch](#touch)
   - [symlink](#symlink)
   - [directory](#directory)
@@ -201,6 +202,16 @@ file '/tmp/deep/nested/dir/config.txt' do
   'content'
 end
 
+# File content extended from a command
+command spell do
+  'aspell list < FILE_PATH'
+end
+
+file '/tmp/post.txt' do
+  append from command spell
+  'Draft text'
+end
+
 # Named file with explicit path
 file create config do
   path '/etc/myapp.conf'
@@ -214,6 +225,51 @@ file '/tmp/obsolete.txt' do
   is absent
 end
 ```
+
+### agent / prompt / command
+
+Use `agent` definitions for the final file-processing command, `command`
+definitions for reusable prompt-time shell commands, and `prompt`
+definitions to compose the text passed to the agent.
+
+```ruby
+agent hexai do
+  retries 3
+  retry_delay 1
+  retry_backoff 2
+  'hexai PROMPT'
+end
+
+command spell do
+  'aspell list < FILE_PATH'
+end
+
+prompt fix english do
+  append from command spell
+  'Correct spelling and grammar. Use the spell-check output as hints.'
+end
+
+file '/tmp/post.txt' do
+  agent hexai fix english
+end
+```
+
+Inside a prompt block, `append from command ...` and `prepend from command ...`
+insert the raw stdout of the named command after or before the static prompt
+text. `FILE_PATH` expands to the current file being processed.
+
+Agent-backed files are cached under `$XDG_CACHE_HOME/rcm/agents` (or
+`~/.cache/rcm/agents` when `XDG_CACHE_HOME` is unset). RCM reruns the
+agent only when the file content checksum changes or the selected
+agent, prompt, or prompt-command definition changes.
+
+Agent definitions retry failed invocations by default twice after the
+first run, for 3 total attempts. If the agent still fails, RCM skips
+that file and continues with the next resource. `retries` sets the
+number of extra attempts after the first run, `retry_delay` sets the
+initial wait in seconds, and `retry_backoff` multiplies that delay after
+each failure. This is useful for transient failures from remote-backed
+agents such as network timeouts.
 
 ### touch
 

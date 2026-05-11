@@ -1,11 +1,17 @@
+# frozen_string_literal: true
+
+# rubocop:disable Metrics/ClassLength, Metrics/MethodLength, Metrics/AbcSize
 require 'minitest/autorun'
 require 'fileutils'
+require 'rbconfig'
+require 'shellwords'
 
 require_relative '../../../lib/dsl'
 
 class RCMFileTest < Minitest::Test
-  FILE_PATH = './.file_test.rcmtmp'.freeze
-  DIR_PATH = './.dir_test.rcmtmp'.freeze
+  FILE_PATH = './.file_test.rcmtmp'
+  DIR_PATH = './.dir_test.rcmtmp'
+  MOCK_COMMAND = File.expand_path('../../support/mock_agent.rb', __dir__).freeze
 
   Minitest.after_run do
     File.unlink(FILE_PATH) if File.file?(FILE_PATH)
@@ -14,8 +20,26 @@ class RCMFileTest < Minitest::Test
 
   # Clean up shared temp file between tests to prevent order-dependent failures
   def setup
+    @original_argv = ARGV.dup
     File.unlink(FILE_PATH) if File.file?(FILE_PATH)
     FileUtils.rm_r(DIR_PATH) if File.directory?(DIR_PATH)
+  end
+
+  def teardown
+    ARGV.replace(@original_argv) if @original_argv
+  end
+
+  def mock_command(mode, *args)
+    parts = [RbConfig.ruby, MOCK_COMMAND, mode.to_s]
+    args.each do |arg|
+      parts << if %w[INPUT PROMPT FILE_PATH].include?(arg)
+                 arg
+               else
+                 Shellwords.escape(arg.to_s)
+               end
+    end
+
+    [Shellwords.escape(parts.shift), Shellwords.escape(parts.shift), Shellwords.escape(parts.shift), *parts].join(' ')
   end
 
   def test_create_file_from_string
@@ -104,6 +128,58 @@ class RCMFileTest < Minitest::Test
     assert_equal 'One plus two is 3!', File.read(FILE_PATH)
   end
 
+  def test_file_appends_command_output
+    command_template = mock_command(:join_args, 'suffix', 'FILE_PATH')
+
+    configure_from_scratch do
+      command suffix do
+        command_template
+      end
+
+      file FILE_PATH do
+        append from command suffix
+        'Hello World!'
+      end
+    end
+
+    assert_equal "Hello World!\nsuffix|#{FILE_PATH}", File.read(FILE_PATH)
+  end
+
+  def test_file_prepends_command_output
+    command_template = mock_command(:join_args, 'prefix', 'FILE_PATH')
+
+    configure_from_scratch do
+      command prefix do
+        command_template
+      end
+
+      file FILE_PATH do
+        prepend from command prefix
+        'Hello World!'
+      end
+    end
+
+    assert_equal "prefix|#{FILE_PATH}\nHello World!", File.read(FILE_PATH)
+  end
+
+  def test_file_appends_command_output_to_template_content
+    command_template = mock_command(:join_args, 'suffix', 'FILE_PATH')
+
+    configure_from_scratch do
+      command suffix do
+        command_template
+      end
+
+      file FILE_PATH do
+        append from command suffix
+        from template
+        'One plus two is <%= 1 + 2 %>!'
+      end
+    end
+
+    assert_equal "One plus two is 3!\nsuffix|#{FILE_PATH}", File.read(FILE_PATH)
+  end
+
   def test_line
     File.write(FILE_PATH, "Hey there\n")
     configure_from_scratch { file(FILE_PATH) { line 'Whats up?' } }
@@ -146,7 +222,8 @@ class RCMFileTest < Minitest::Test
   def test_backup
     file_path = "#{DIR_PATH}/foo/backup-me.txt"
     original_content = 'original_content'
-    backup_path = "#{DIR_PATH}/foo/.rcmbackup/backup-me.txt.d4c3af73588ce06c32ed04d1b79801286109ea265712a2bd3fdc3ed01c82bb86"
+    backup_path =
+      "#{DIR_PATH}/foo/.rcmbackup/backup-me.txt.d4c3af73588ce06c32ed04d1b79801286109ea265712a2bd3fdc3ed01c82bb86"
 
     configure_from_scratch do
       file original do
@@ -168,4 +245,57 @@ class RCMFileTest < Minitest::Test
     assert File.file?(file_path)
     assert_equal :new_content.to_s, File.read(file_path)
   end
+
+  def test_unknown_command_raises_for_file_content
+    error = assert_raises(RCM::DSL::NoSuchCommandDefinition) do
+      configure_from_scratch do
+        file FILE_PATH do
+          append from command suffix
+          'Hello World!'
+        end
+      end
+    end
+
+    assert_match("No such command 'suffix'", error.message)
+  end
+
+  def test_non_zero_command_exit_raises_for_file_content
+    command_template = mock_command(:fail, 'boom', '7')
+
+    error = assert_raises(RCM::File::CommandFailed) do
+      configure_from_scratch do
+        command explode do
+          command_template
+        end
+
+        file FILE_PATH do
+          append from command explode
+          'Hello World!'
+        end
+      end
+    end
+
+    assert_match('exit 7', error.message)
+    assert_match('boom', error.message)
+  end
+
+  def test_dry_run_does_not_execute_file_command
+    command_template = mock_command(:fail, 'boom', '7')
+    ARGV.replace(['--dry'])
+
+    configure_from_scratch do
+      command explode do
+        command_template
+      end
+
+      file FILE_PATH do
+        append from command explode
+        'Hello World!'
+      end
+    end
+
+    refute File.exist?(FILE_PATH)
+  end
 end
+
+# rubocop:enable Metrics/ClassLength, Metrics/MethodLength, Metrics/AbcSize

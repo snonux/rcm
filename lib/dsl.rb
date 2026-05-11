@@ -7,6 +7,7 @@ require_relative 'log'
 require_relative 'chained'
 
 require_relative 'dslkeywords/agent'
+require_relative 'dslkeywords/command'
 require_relative 'dslkeywords/prompt'
 require_relative 'dslkeywords/file'
 require_relative 'dslkeywords/symlink'
@@ -38,6 +39,7 @@ module RCM
     class DuplicateResource < StandardError; end
     class DuplicateDefinition < StandardError; end
     class NoSuchAgentDefinition < StandardError; end
+    class NoSuchCommandDefinition < StandardError; end
     class NoSuchPromptDefinition < StandardError; end
 
     def initialize(reset)

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'digest'
 
 module RCM
@@ -5,12 +7,16 @@ module RCM
   # Included by BasicFile so all file/directory/symlink resources share
   # the same backup logic.
   module FileBackup
+    def checksum_for(file_path)
+      Digest::SHA256.file(file_path).hexdigest
+    end
+
     # TODO: Make protected?
     def backup!(file_path, checksum = nil)
       return if @without_backup
 
       suffix = if ::File.file?(file_path)
-                 checksum.nil? ? Digest::SHA256.file(file_path).hexdigest : checksum
+                 checksum.nil? ? checksum_for(file_path) : checksum
                else
                  Time.now.strftime('%s-%L')
                end
@@ -18,8 +24,8 @@ module RCM
     end
 
     def different?(file_a, file_b)
-      checksum_a = Digest::SHA256.file(file_a).hexdigest
-      checksum_b = Digest::SHA256.file(file_b).hexdigest
+      checksum_a = checksum_for(file_a)
+      checksum_b = checksum_for(file_b)
       [checksum_a != checksum_b, checksum_a, checksum_b]
     end
 
